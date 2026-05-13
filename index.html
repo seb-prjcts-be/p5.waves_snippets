@@ -3,32 +3,46 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>p5.waves Visual Vocabulary</title>
+    <title>p5.waves — visual vocabulary</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/p5@2.2.2/lib/p5.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/seb-prjcts-be/p5.waves@v3.2.6/p5.waves.min.js"></script>
   </head>
   <body>
-    <header class="site-header">
-      <div class="identity">
-        <span class="mark" aria-hidden="true"></span>
-        <div>
-          <p class="kicker">p5.waves specimen library</p>
-          <h1>Wave behavior as graphic vocabulary</h1>
-        </div>
-      </div>
-      <p class="intro">
-        A catalogue of small reusable decisions: one value moves type, gates words,
-        activates grids, shifts color, and gives interface states a visible rhythm.
-      </p>
+    <header class="site-nav">
+      <a class="brand" href="#">P5.WAVES<span class="brand-dot">.</span><span class="brand-tail">VOCAB</span></a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#library" class="is-active">SPECIMENS</a>
+        <a href="https://seb-prjcts-be.github.io/p5.waves/" target="_blank" rel="noopener">SHOWCASE</a>
+        <a href="https://seb-prjcts-be.github.io/p5.waves/docs/guide.html" target="_blank" rel="noopener">GUIDE</a>
+        <a href="https://github.com/seb-prjcts-be/p5.waves" target="_blank" rel="noopener">GITHUB</a>
+      </nav>
     </header>
+
+    <section class="hero">
+      <canvas id="heroCanvas" aria-hidden="true"></canvas>
+      <div class="hero-inner">
+        <p class="hero-badge">P5.WAVES SPECIMEN LIBRARY</p>
+        <h1>One wave call.<br>Many graphic jobs.</h1>
+        <p class="hero-lead">
+          A catalogue of small reusable decisions. The same <code>Waves.wave()</code> moves type,
+          gates words, activates grids, shifts color, and gives interface states a visible rhythm.
+        </p>
+        <a class="hero-cta" href="#library">BROWSE SPECIMENS <span aria-hidden="true">↓</span></a>
+      </div>
+    </section>
 
     <main>
       <section class="control-panel" aria-label="Library controls">
         <div class="search-wrap">
-          <label for="search">Search modules</label>
-          <input id="search" type="search" placeholder="Try grid, type, status, texture">
+          <label for="search">SEARCH</label>
+          <input id="search" type="search" placeholder="grid, type, status, texture…">
         </div>
         <div class="control-group">
-          <span class="control-label">Category</span>
+          <span class="control-label">CATEGORY</span>
           <div class="filter-wrap" aria-label="Category filters">
             <button class="filter is-active" type="button" data-filter="all">All</button>
             <button class="filter" type="button" data-filter="motion">Motion</button>
@@ -42,12 +56,12 @@
           </div>
         </div>
         <div class="control-group">
-          <span class="control-label">Primitive</span>
+          <span class="control-label">PRIMITIVE</span>
           <div class="filter-wrap primitive-wrap" aria-label="Primitive filters">
-            <button class="filter is-active" type="button" data-primitive="all">All primitives</button>
+            <button class="filter is-active" type="button" data-primitive="all">All</button>
             <button class="filter" type="button" data-primitive="Waves.wave()">Waves.wave()</button>
-            <button class="filter" type="button" data-primitive="sampler.sample()">sampler.sample()</button>
-            <button class="filter" type="button" data-primitive="sampler.mix">sampler.mix</button>
+            <button class="filter" type="button" data-primitive="Waves.createSampler()">createSampler()</button>
+            <button class="filter" type="button" data-primitive="Waves.createGrid()">createGrid()</button>
           </div>
         </div>
         <button id="motionToggle" class="motion-toggle" type="button" aria-pressed="false">Pause previews</button>
@@ -55,39 +69,51 @@
 
       <section class="library-summary" aria-label="Current wave state">
         <div>
-          <span class="summary-label">Primitive view</span>
+          <span class="summary-label">PRIMITIVES</span>
           <strong id="activePrimitive">3 primitives</strong>
         </div>
         <div>
-          <span class="summary-label">Visible modules</span>
+          <span class="summary-label">VISIBLE SPECIMENS</span>
           <strong id="visibleCount">28</strong>
         </div>
         <div>
-          <span class="summary-label">Vocabulary focus</span>
+          <span class="summary-label">FOCUS</span>
           <strong id="focusLabel">micro-decisions</strong>
         </div>
       </section>
 
       <section id="library" class="library-grid" aria-live="polite"></section>
+
+      <footer class="site-foot">
+        <p>
+          Built on
+          <a href="https://github.com/seb-prjcts-be/p5.waves" target="_blank" rel="noopener">p5.waves</a>
+          v3.2.6 + p5.js 2.2.2. Snippets are runnable — copy any card into
+          <a href="https://editor.p5js.org/" target="_blank" rel="noopener">editor.p5js.org</a>.
+        </p>
+      </footer>
     </main>
 
     <template id="cardTemplate">
       <article class="module-card">
-        <div class="card-head">
+        <header class="card-head">
           <div>
             <p class="category"></p>
             <h2></h2>
           </div>
-          <button class="copy-button" type="button">Copy</button>
-        </div>
+          <button class="copy-button" type="button">COPY</button>
+        </header>
         <p class="role"></p>
-        <canvas width="620" height="320"></canvas>
+        <canvas></canvas>
         <div class="meta-row"></div>
         <p class="notes"></p>
-        <pre><code></code></pre>
+        <details class="snippet">
+          <summary>Runnable sketch</summary>
+          <pre><code></code></pre>
+        </details>
       </article>
     </template>
 
-    <script src="script.js"></script>
+    <script src="script.js" defer></script>
   </body>
 </html>

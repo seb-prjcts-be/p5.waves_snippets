@@ -1,91 +1,122 @@
-const TAU = Math.PI * 2;
+/* p5.waves visual vocabulary — uses real Waves.wave / createSampler / createGrid (v3.2.6) */
+
 const palette = {
-  ink: "#17191c",
-  muted: "#626974",
-  paper: "#f7f8f4",
+  ink: "#111213",
+  inkSoft: "#2a2c30",
+  muted: "#6a6f78",
+  line: "#d9dadc",
+  paper: "#f4f4f3",
   panel: "#ffffff",
-  red: "#ef5a43",
-  teal: "#1a9a96",
-  blue: "#486de8",
-  green: "#8bbf28",
-  yellow: "#e7b436",
-  violet: "#7b5ad7",
-  line: "#d7dce2"
+  pink: "#f9b7c4",
+  peach: "#f6a796",
+  sky: "#b8d2ff",
+  mint: "#c7e89c",
+  lemon: "#f3e679",
+  lilac: "#c8c3f1"
 };
 
-const waveFunctions = {
-  sine: x => Math.sin(x * TAU),
-  triangle: x => 1 - 4 * Math.abs(Math.round(x - 0.25) - (x - 0.25)),
-  pulse: x => (Math.sin(x * TAU) > 0 ? 1 : -1),
-  ramp: x => ((x % 1) * 2) - 1,
-  bounce: x => Math.abs(Math.sin(x * TAU)) * 2 - 1
+const PRIMITIVES = {
+  wave: "Waves.wave()",
+  sampler: "Waves.createSampler()",
+  grid: "Waves.createGrid()"
 };
 
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
+const ACCENT = [palette.pink, palette.peach, palette.sky, palette.mint, palette.lemon, palette.lilac];
 
-function norm(value) {
-  return (value + 1) * 0.5;
-}
-
-function lerp(a, b, amount) {
-  return a + (b - a) * amount;
-}
-
-function wave(name, phase, speed = 1, offset = 0) {
-  const fn = waveFunctions[name] || waveFunctions.sine;
-  return fn(phase * speed + offset);
-}
-
-function mixWave(a, b, phase, mix) {
-  return lerp(wave(a, phase), wave(b, phase), mix);
-}
+/* ---------- canvas helpers ---------- */
 
 function setupCanvas(canvas) {
   const ctx = canvas.getContext("2d");
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
-  const width = Math.max(1, Math.round(rect.width * dpr));
-  const height = Math.max(1, Math.round(rect.height * dpr));
-
-  if (canvas.width !== width || canvas.height !== height) {
-    canvas.width = width;
-    canvas.height = height;
+  const w = Math.max(1, Math.round(rect.width * dpr));
+  const h = Math.max(1, Math.round(rect.height * dpr));
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
   }
-
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return { ctx, w: rect.width, h: rect.height };
 }
 
-function clear(ctx, w, h, color = "#f2f4f6") {
+function clear(ctx, w, h, color = palette.paper) {
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, w, h);
 }
 
-function drawGuide(ctx, w, h) {
-  ctx.strokeStyle = "rgba(23, 25, 28, 0.1)";
+function gridGuide(ctx, w, h, step = 28, alpha = 0.06) {
+  ctx.strokeStyle = `rgba(17, 18, 19, ${alpha})`;
   ctx.lineWidth = 1;
-  for (let x = 0; x <= w; x += 28) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, h);
-    ctx.stroke();
+  for (let x = step; x < w; x += step) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
   }
-  for (let y = 0; y <= h; y += 28) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(w, y);
-    ctx.stroke();
+  for (let y = step; y < h; y += step) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
   }
 }
 
-function drawLabel(ctx, text, x, y, color = palette.ink, size = 12) {
+function label(ctx, text, x, y, color = palette.ink, size = 12, weight = 600) {
   ctx.fillStyle = color;
-  ctx.font = `700 ${size}px Inter, system-ui, sans-serif`;
+  ctx.font = `${weight} ${size}px Oswald, Inter, sans-serif`;
   ctx.textBaseline = "middle";
   ctx.fillText(text, x, y);
 }
+
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+function norm(v) { return (v + 1) * 0.5; } // -1..1 -> 0..1
+
+/* ---------- hero canvas: stacked pastel wave bands ---------- */
+
+function bootHero() {
+  const canvas = document.querySelector("#heroCanvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const bands = [
+    { sampler: Waves.createSampler({ shift: true, shiftInterval: 6, shiftDuration: 2.4, group: "gentle", range: [-1, 1] }), color: palette.peach, alpha: 0.55, freq: 0.0035, speed: 0.18, baseY: 0.32, amp: 0.18 },
+    { sampler: Waves.createSampler({ shift: true, shiftInterval: 5, shiftDuration: 2.0, group: "gentle", range: [-1, 1] }), color: palette.pink,  alpha: 0.55, freq: 0.0045, speed: 0.22, baseY: 0.48, amp: 0.22 },
+    { sampler: Waves.createSampler({ shift: true, shiftInterval: 7, shiftDuration: 2.6, group: "gentle", range: [-1, 1] }), color: palette.sky,   alpha: 0.6,  freq: 0.003,  speed: 0.16, baseY: 0.66, amp: 0.2  },
+    { sampler: Waves.createSampler({ shift: true, shiftInterval: 8, shiftDuration: 2.8, group: "gentle", range: [-1, 1] }), color: palette.lemon, alpha: 0.5,  freq: 0.005,  speed: 0.24, baseY: 0.82, amp: 0.14 }
+  ];
+
+  function frame(time) {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const w = Math.max(1, Math.round(rect.width * dpr));
+    const h = Math.max(1, Math.round(rect.height * dpr));
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, rect.width, rect.height);
+
+    const t = time * 0.001;
+    bands.forEach(band => {
+      const baseY = rect.height * band.baseY;
+      const amp = rect.height * band.amp;
+      ctx.beginPath();
+      ctx.moveTo(0, rect.height);
+      for (let x = 0; x <= rect.width; x += 4) {
+        const v = band.sampler.sample(x * band.freq, t * band.speed);
+        ctx.lineTo(x, baseY + v * amp);
+      }
+      ctx.lineTo(rect.width, rect.height);
+      ctx.closePath();
+      ctx.fillStyle = band.color;
+      ctx.globalAlpha = band.alpha;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- module definitions ----------
+ * Each module declares:
+ *  - id, name, category, role, tags, primitive, reuse, notes
+ *  - state? : per-card mutable storage (samplers, grids cached here)
+ *  - draw(ctx, w, h, t, state) : called every frame for visible cards
+ *  - sketch : runnable p5 sketch string (copy-paste into editor.p5js.org)
+ */
 
 const modules = [
   {
@@ -93,981 +124,1708 @@ const modules = [
     name: "Drifting Label",
     category: "motion",
     role: "A wave value becomes a precise horizontal offset for a small annotation.",
-    tags: ["motion", "label", "position"],
-    primitive: "Waves.wave()",
-    reuse: "callouts and captions",
-    notes: "Useful for captions, callouts, and editorial labels that should stay legible while feeling active.",
-    code: `const v = Waves.wave(t, { wave: "sine", speed: 0.7 });
-const x = baseX + v * 36;
-
-text("sample point", x, y);
-line(baseX, y + 16, x, y + 16);`,
+    tags: ["label", "position"],
+    primitive: PRIMITIVES.wave,
+    reuse: "captions",
+    notes: "Useful for callouts and editorial labels that should stay legible while feeling active.",
     draw(ctx, w, h, t) {
-      clear(ctx, w, h);
-      drawGuide(ctx, w, h);
+      clear(ctx, w, h, palette.panel);
+      gridGuide(ctx, w, h);
+      const v = Waves.wave(0, { wave: "classic sine", t: t * 0.7, amplitude: 1 });
       const baseX = w * 0.5;
-      const y = h * 0.52;
-      const v = wave("sine", t, 0.7);
-      const x = baseX + v * w * 0.18;
+      const y = h * 0.55;
+      const x = baseX + v * w * 0.2;
       ctx.strokeStyle = palette.ink;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(baseX, y + 22);
-      ctx.lineTo(x, y + 22);
-      ctx.stroke();
-      ctx.fillStyle = palette.red;
-      ctx.fillRect(baseX - 3, y - 34, 6, 72);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(baseX, y + 22); ctx.lineTo(x, y + 22); ctx.stroke();
+      ctx.fillStyle = palette.peach;
+      ctx.fillRect(baseX - 3, y - 32, 6, 64);
       ctx.fillStyle = palette.panel;
       ctx.strokeStyle = palette.ink;
-      ctx.lineWidth = 2;
-      ctx.fillRect(x - 56, y - 18, 112, 36);
-      ctx.strokeRect(x - 56, y - 18, 112, 36);
-      drawLabel(ctx, "sample point", x - 42, y + 1, palette.ink, 13);
-    }
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(x - 58, y - 18, 116, 36);
+      ctx.strokeRect(x - 58, y - 18, 116, 36);
+      label(ctx, "sample point", x - 46, y + 1, palette.ink, 13);
+    },
+    sketch: sketchTemplate(`
+let baseX, y;
+function setup() {
+  createCanvas(620, 320);
+  textFont('sans-serif');
+  baseX = width / 2;
+  y = height / 2;
+}
+function draw() {
+  background(244);
+  const t = millis() / 1000;
+  const v = Waves.wave(0, { wave: 'classic sine', t: t * 0.7, amplitude: 1 });
+  const x = baseX + v * width * 0.2;
+  stroke(0); strokeWeight(1.5);
+  line(baseX, y + 22, x, y + 22);
+  noStroke(); fill(246, 167, 150);
+  rect(baseX - 3, y - 32, 6, 64);
+  fill(255); stroke(0);
+  rect(x - 58, y - 18, 116, 36);
+  noStroke(); fill(0);
+  textSize(13); textAlign(LEFT, CENTER);
+  text('sample point', x - 46, y);
+}`)
   },
+
   {
     id: "breathing-title",
     name: "Breathing Title",
     category: "type",
     role: "The wave opens and closes letter spacing without changing the words.",
-    tags: ["type", "spacing", "headline"],
-    primitive: "Waves.wave()",
+    tags: ["spacing", "headline"],
+    primitive: PRIMITIVES.wave,
     reuse: "section titles",
     notes: "A compact way to animate hierarchy in titles, section markers, and display typography.",
-    code: `const v = Waves.wave(t, { wave: "bounce", speed: 0.45 });
-const tracking = map(v, -1, 1, 0, 14);
-
-drawTrackedText("SIGNAL", x, y, tracking);`,
     draw(ctx, w, h, t) {
-      clear(ctx, w, h, "#ffffff");
-      const v = norm(wave("bounce", t, 0.45));
-      const tracking = lerp(0, 16, v);
+      clear(ctx, w, h, palette.panel);
+      const v = norm(Waves.wave(0, { wave: "bumpy sine", t: t * 0.45, amplitude: 1 }));
+      const tracking = lerp(2, 22, v);
       const letters = "SIGNAL".split("");
-      ctx.font = `900 ${Math.min(52, w * 0.11)}px Inter, system-ui, sans-serif`;
+      const fontSize = Math.min(64, w * 0.13);
+      ctx.font = `600 ${fontSize}px Oswald, sans-serif`;
       ctx.textBaseline = "middle";
-      const widths = letters.map(letter => ctx.measureText(letter).width);
-      const total = widths.reduce((sum, item) => sum + item, 0) + tracking * (letters.length - 1);
+      const widths = letters.map(l => ctx.measureText(l).width);
+      const total = widths.reduce((a, b) => a + b, 0) + tracking * (letters.length - 1);
       let x = (w - total) * 0.5;
       const y = h * 0.5;
-      letters.forEach((letter, index) => {
-        ctx.fillStyle = index % 2 ? palette.teal : palette.ink;
-        ctx.fillText(letter, x, y);
-        x += widths[index] + tracking;
+      letters.forEach((l, i) => {
+        ctx.fillStyle = palette.ink;
+        ctx.fillText(l, x, y);
+        x += widths[i] + tracking;
       });
-      ctx.fillStyle = palette.yellow;
-      ctx.fillRect(w * 0.16, y + 38, w * 0.68 * v, 8);
-    }
+      ctx.fillStyle = palette.pink;
+      ctx.fillRect(w * 0.16, y + fontSize * 0.65, w * 0.68 * v, 6);
+    },
+    sketch: sketchTemplate(`
+function setup() { createCanvas(620, 320); textFont('Oswald'); }
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const v = (Waves.wave(0, { wave: 'bumpy sine', t: t * 0.45, amplitude: 1 }) + 1) / 2;
+  const tracking = map(v, 0, 1, 2, 22);
+  const letters = 'SIGNAL'.split('');
+  const fs = min(64, width * 0.13);
+  textSize(fs); textAlign(LEFT, CENTER); fill(0);
+  const widths = letters.map(l => textWidth(l));
+  const total = widths.reduce((a, b) => a + b, 0) + tracking * (letters.length - 1);
+  let x = (width - total) / 2;
+  for (let i = 0; i < letters.length; i++) {
+    text(letters[i], x, height / 2);
+    x += widths[i] + tracking;
+  }
+  noStroke(); fill(249, 183, 196);
+  rect(width * 0.16, height / 2 + fs * 0.65, width * 0.68 * v, 6);
+}`)
   },
+
+  {
+    id: "interference-grid",
+    name: "Interference Grid",
+    category: "grid",
+    role: "createGrid sums a row-wave and a col-wave — same frequency, different phase, interference.",
+    tags: ["createGrid", "moire"],
+    primitive: PRIMITIVES.grid,
+    reuse: "matrix backgrounds",
+    notes: "createGrid does the heavy lifting: one call fills a typed array of (waveRow + waveCol) values.",
+    state: { grid: null, cols: 28, rows: 14, t: 0 },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.paper);
+      if (!state.grid) {
+        state.grid = Waves.createGrid(state.cols, state.rows, {
+          waveRow: "classic sine",
+          waveCol: "classic sine",
+          range: [0, 1],
+          speed: 0.4
+        });
+      }
+      const cells = state.grid.sample(t * 0.6);
+      const cw = w / state.cols;
+      const ch = h / state.rows;
+      for (let r = 0; r < state.rows; r++) {
+        for (let c = 0; c < state.cols; c++) {
+          const v = cells[r * state.cols + c];
+          const a = Math.pow(v, 1.5);
+          ctx.fillStyle = `rgba(17, 18, 19, ${a})`;
+          ctx.fillRect(c * cw, r * ch, cw + 0.5, ch + 0.5);
+        }
+      }
+    },
+    sketch: sketchTemplate(`
+let g;
+const COLS = 28, ROWS = 14;
+function setup() {
+  createCanvas(620, 320);
+  noStroke();
+  g = Waves.createGrid(COLS, ROWS, {
+    waveRow: 'classic sine',
+    waveCol: 'classic sine',
+    range: [0, 1],
+    speed: 0.4
+  });
+}
+function draw() {
+  background(244);
+  const cells = g.sample(millis() / 1000 * 0.6);
+  const cw = width / COLS, ch = height / ROWS;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const v = pow(cells[r * COLS + c], 1.5);
+      fill(17, 18, 19, v * 255);
+      rect(c * cw, r * ch, cw + 0.5, ch + 0.5);
+    }
+  }
+}`)
+  },
+
   {
     id: "threshold-field",
     name: "Threshold Field",
     category: "grid",
-    role: "Sampled row and column values decide which cells are active.",
-    tags: ["grid", "threshold", "pattern"],
-    primitive: "sampler.sample()",
+    role: "A binary grid: cells flip on when waveRow + waveCol crosses the threshold.",
+    tags: ["createGrid", "threshold", "binary"],
+    primitive: PRIMITIVES.grid,
     reuse: "matrix backgrounds",
-    notes: "Good for backgrounds, data placeholders, matrix states, and printable block patterns.",
-    code: `for (let y = 0; y < rows; y++) {
-  for (let x = 0; x < cols; x++) {
-    const v = sampler.sample(x + y * 0.5, t);
-    if (v > threshold) rect(x * cell, y * cell, cell, cell);
-  }
-}`,
-    draw(ctx, w, h, t) {
-      clear(ctx, w, h, "#eef1f2");
-      const cols = 14;
-      const rows = 8;
-      const gap = 5;
-      const cell = Math.min((w - gap * (cols + 1)) / cols, (h - gap * (rows + 1)) / rows);
-      const startX = (w - (cols * cell + (cols - 1) * gap)) * 0.5;
-      const startY = (h - (rows * cell + (rows - 1) * gap)) * 0.5;
-      const threshold = lerp(0.05, 0.72, norm(wave("sine", t, 0.38)));
-      for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-          const v = norm(wave("triangle", t, 0.65, x * 0.08 + y * 0.11));
-          ctx.fillStyle = v > threshold ? palette.ink : "#dce2e6";
-          ctx.fillRect(startX + x * (cell + gap), startY + y * (cell + gap), cell, cell);
+    notes: "createGrid with threshold returns a Uint8Array of 0/1 — perfect for monochrome patterns.",
+    state: { grid: null, cols: 22, rows: 10, t: 0 },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.paper);
+      if (!state.grid) {
+        state.grid = Waves.createGrid(state.cols, state.rows, {
+          waveRow: "triangle",
+          waveCol: "classic sine",
+          threshold: 0,
+          speed: 0.5
+        });
+      }
+      const cells = state.grid.sample(t * 0.7);
+      const gap = 4;
+      const cw = (w - gap * (state.cols + 1)) / state.cols;
+      const ch = (h - gap * (state.rows + 1)) / state.rows;
+      for (let r = 0; r < state.rows; r++) {
+        for (let c = 0; c < state.cols; c++) {
+          const v = cells[r * state.cols + c];
+          ctx.fillStyle = v === 1 ? palette.ink : "#d2d6d9";
+          ctx.fillRect(gap + c * (cw + gap), gap + r * (ch + gap), cw, ch);
         }
       }
+    },
+    sketch: sketchTemplate(`
+let g;
+const COLS = 22, ROWS = 10;
+function setup() {
+  createCanvas(620, 320);
+  noStroke();
+  g = Waves.createGrid(COLS, ROWS, {
+    waveRow: 'triangle',
+    waveCol: 'classic sine',
+    threshold: 0,
+    speed: 0.5
+  });
+}
+function draw() {
+  background(244);
+  const cells = g.sample(millis() / 1000 * 0.7);
+  const gap = 4;
+  const cw = (width - gap * (COLS + 1)) / COLS;
+  const ch = (height - gap * (ROWS + 1)) / ROWS;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      fill(cells[r * COLS + c] === 1 ? 0 : 210);
+      rect(gap + c * (cw + gap), gap + r * (ch + gap), cw, ch);
     }
+  }
+}`)
   },
+
   {
     id: "signal-palette",
     name: "Signal Palette",
     category: "color",
-    role: "A normalized wave value chooses intensity across a compact palette.",
-    tags: ["color", "swatch", "contrast"],
-    primitive: "Waves.wave()",
+    role: "A normalised wave value chooses intensity across a compact palette.",
+    tags: ["swatch", "emphasis"],
+    primitive: PRIMITIVES.wave,
     reuse: "emphasis swatches",
-    notes: "Use the same value to tune fills, borders, or emphasis without making random color choices.",
-    code: `const v = (Waves.wave(t, { wave: "sine" }) + 1) / 2;
-const active = floor(v * palette.length);
-
-fill(palette[active]);
-rect(x, y, w, h);`,
+    notes: "Use the same value to tune fills, borders, and emphasis without making random color choices.",
     draw(ctx, w, h, t) {
-      clear(ctx, w, h, "#ffffff");
-      const colors = [palette.red, palette.yellow, palette.green, palette.teal, palette.blue, palette.violet];
-      const v = norm(wave("sine", t, 0.34));
-      const active = clamp(Math.floor(v * colors.length), 0, colors.length - 1);
-      const swatchW = w / colors.length;
-      colors.forEach((color, index) => {
-        ctx.fillStyle = color;
-        ctx.globalAlpha = index === active ? 1 : 0.34;
-        ctx.fillRect(index * swatchW, h * 0.18, swatchW, h * 0.64);
+      clear(ctx, w, h, palette.panel);
+      const swatches = ACCENT;
+      const v = norm(Waves.wave(0, { wave: "classic sine", t: t * 0.34, amplitude: 1 }));
+      const active = clamp(Math.floor(v * swatches.length), 0, swatches.length - 1);
+      const sw = w / swatches.length;
+      swatches.forEach((c, i) => {
+        ctx.fillStyle = c;
+        ctx.globalAlpha = i === active ? 1 : 0.32;
+        ctx.fillRect(i * sw, h * 0.18, sw, h * 0.6);
         ctx.globalAlpha = 1;
-        if (index === active) {
+        if (i === active) {
           ctx.strokeStyle = palette.ink;
-          ctx.lineWidth = 4;
-          ctx.strokeRect(index * swatchW + 5, h * 0.18 + 5, swatchW - 10, h * 0.64 - 10);
+          ctx.lineWidth = 2;
+          ctx.strokeRect(i * sw + 5, h * 0.18 + 5, sw - 10, h * 0.6 - 10);
         }
       });
-      drawLabel(ctx, `value ${v.toFixed(2)}`, 16, h - 20, palette.ink, 13);
+      label(ctx, `value ${v.toFixed(2)}`, 14, h - 18, palette.ink, 12);
+    },
+    sketch: sketchTemplate(`
+const swatches = ['#f9b7c4', '#f6a796', '#b8d2ff', '#c7e89c', '#f3e679', '#c8c3f1'];
+function setup() { createCanvas(620, 320); noStroke(); }
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const v = (Waves.wave(0, { wave: 'classic sine', t: t * 0.34, amplitude: 1 }) + 1) / 2;
+  const active = constrain(floor(v * swatches.length), 0, swatches.length - 1);
+  const sw = width / swatches.length;
+  for (let i = 0; i < swatches.length; i++) {
+    fill(swatches[i] + (i === active ? '' : '55'));
+    rect(i * sw, height * 0.18, sw, height * 0.6);
+    if (i === active) {
+      noFill(); stroke(0); strokeWeight(2);
+      rect(i * sw + 5, height * 0.18 + 5, sw - 10, height * 0.6 - 10);
+      noStroke();
     }
+  }
+  fill(0); textSize(12); text('value ' + nf(v, 1, 2), 14, height - 14);
+}`)
   },
+
   {
     id: "pressure-hatch",
     name: "Pressure Hatch",
     category: "texture",
     role: "Wave amplitude becomes spacing and bend in a reusable hatch texture.",
-    tags: ["texture", "print", "hatch"],
-    primitive: "Waves.wave()",
+    tags: ["hatch", "print"],
+    primitive: PRIMITIVES.wave,
     reuse: "print textures",
     notes: "A small texture module that can become a mask, poster field, or exportable tile.",
-    code: `const pressure = Waves.wave(t, { wave: "triangle" });
-const gap = map(pressure, -1, 1, 18, 7);
-
-for (let x = -w; x < w * 2; x += gap) {
-  curve(x, 0, x + pressure * 18, h * 0.5, x, h);
-}`,
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.paper);
-      const pressure = wave("triangle", t, 0.42);
-      const gap = lerp(18, 7, norm(pressure));
+      const pressure = Waves.wave(0, { wave: "triangle", t: t * 0.42, amplitude: 1 });
+      const gap = lerp(20, 7, norm(pressure));
       ctx.strokeStyle = palette.ink;
-      ctx.lineWidth = 1.4;
+      ctx.lineWidth = 1.3;
       for (let x = -w; x < w * 2; x += gap) {
         ctx.beginPath();
         ctx.moveTo(x, -10);
-        ctx.quadraticCurveTo(x + pressure * 34, h * 0.5, x - pressure * 20, h + 10);
+        ctx.quadraticCurveTo(x + pressure * 30, h * 0.5, x - pressure * 22, h + 10);
         ctx.stroke();
       }
-      ctx.fillStyle = "rgba(239, 90, 67, 0.88)";
+      ctx.fillStyle = palette.peach;
+      ctx.globalAlpha = 0.9;
       ctx.fillRect(w * 0.12, h * 0.2, w * 0.18, h * 0.6);
-    }
+      ctx.globalAlpha = 1;
+    },
+    sketch: sketchTemplate(`
+function setup() { createCanvas(620, 320); }
+function draw() {
+  background(244);
+  const t = millis() / 1000;
+  const p = Waves.wave(0, { wave: 'triangle', t: t * 0.42, amplitude: 1 });
+  const gap = map(p, -1, 1, 20, 7);
+  stroke(0); strokeWeight(1.3); noFill();
+  for (let x = -width; x < width * 2; x += gap) {
+    bezier(x, -10, x + p * 30, height / 2, x + p * 30, height / 2, x - p * 22, height + 10);
+  }
+  noStroke(); fill(246, 167, 150, 230);
+  rect(width * 0.12, height * 0.2, width * 0.18, height * 0.6);
+}`)
   },
+
   {
     id: "live-loader",
     name: "Live Loader",
     category: "interface",
-    role: "A wave maps to progress so a waiting state has a readable rhythm.",
-    tags: ["interface", "loading", "progress"],
-    primitive: "Waves.wave()",
+    role: "A ramp wave maps to progress so a waiting state has a readable rhythm.",
+    tags: ["loading", "progress"],
+    primitive: PRIMITIVES.wave,
     reuse: "waiting states",
     notes: "The value never needs to be real progress; it can simply communicate that the system is alive.",
-    code: `const v = (Waves.wave(t, { wave: "ramp" }) + 1) / 2;
-
-rect(trackX, trackY, trackW, 8);
-rect(trackX, trackY, trackW * v, 8);`,
     draw(ctx, w, h, t) {
-      clear(ctx, w, h, "#ffffff");
-      const v = norm(wave("ramp", t, 0.27));
+      clear(ctx, w, h, palette.panel);
+      const v = norm(Waves.wave(0, { wave: "ramp", t: t * 0.27, amplitude: 1 }));
       const x = w * 0.14;
       const y = h * 0.48;
       const trackW = w * 0.72;
       ctx.strokeStyle = palette.ink;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.5;
       ctx.strokeRect(x, y, trackW, 18);
-      ctx.fillStyle = palette.teal;
-      ctx.fillRect(x + 4, y + 4, Math.max(2, (trackW - 8) * v), 10);
-      drawLabel(ctx, "syncing visual index", x, y - 24, palette.ink, 13);
-      drawLabel(ctx, `${Math.round(v * 100)}%`, x + trackW - 36, y + 44, palette.muted, 12);
-    }
+      ctx.fillStyle = palette.ink;
+      ctx.fillRect(x + 3, y + 3, Math.max(2, (trackW - 6) * v), 12);
+      label(ctx, "syncing visual index", x, y - 22, palette.ink, 12);
+      label(ctx, `${Math.round(v * 100)}%`, x + trackW - 38, y + 42, palette.muted, 11);
+    },
+    sketch: sketchTemplate(`
+function setup() { createCanvas(620, 320); }
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const v = (Waves.wave(0, { wave: 'ramp', t: t * 0.27, amplitude: 1 }) + 1) / 2;
+  const x = width * 0.14, y = height * 0.48, trackW = width * 0.72;
+  noFill(); stroke(0); strokeWeight(1.5);
+  rect(x, y, trackW, 18);
+  noStroke(); fill(0);
+  rect(x + 3, y + 3, max(2, (trackW - 6) * v), 12);
+  textSize(12); text('syncing visual index', x, y - 14);
+  fill(120); text(round(v * 100) + '%', x + trackW - 38, y + 46);
+}`)
   },
+
   {
     id: "wave-shift-readout",
     name: "Wave Shift Readout",
     category: "state",
-    role: "The sampler exposes active wave, target wave, and mix as a compact state label.",
-    tags: ["state", "mix", "label"],
-    primitive: "sampler.mix",
+    role: "Real sampler exposes waveName, targetName, mix — readable as a tool state.",
+    tags: ["sampler", "shift"],
+    primitive: PRIMITIVES.sampler,
     reuse: "tool readouts",
-    notes: "A state module for tools where users need to know which behavior is active and where it is heading.",
-    code: `text(sampler.waveName, x, y);
-text(sampler.targetName, x, y + 18);
+    notes: "These getters are live — drop them into any UI to show which wave is active and where it's heading.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.panel);
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({
+          shift: true,
+          shiftInterval: 3,
+          shiftDuration: 1.2,
+          group: "gentle",
+          amplitude: 1
+        });
+      }
+      state.sampler.sample(0, t);
+      const s = state.sampler;
+      ctx.fillStyle = palette.paper;
+      ctx.strokeStyle = palette.ink;
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(w * 0.08, h * 0.18, w * 0.84, h * 0.64);
+      label(ctx, "ACTIVE", w * 0.12, h * 0.3, palette.muted, 11);
+      label(ctx, s.waveName, w * 0.12, h * 0.43, palette.ink, 22, 600);
+      label(ctx, "TARGET", w * 0.12, h * 0.6, palette.muted, 11);
+      label(ctx, s.targetName, w * 0.12, h * 0.73, palette.ink, 18, 500);
+      const barX = w * 0.5;
+      const barW = w * 0.36;
+      ctx.fillStyle = palette.line;
+      ctx.fillRect(barX, h * 0.7, barW, 8);
+      ctx.fillStyle = s.shifting ? palette.peach : palette.mint;
+      ctx.fillRect(barX, h * 0.7, barW * (s.mix || 0), 8);
+      label(ctx, `mix ${(s.mix || 0).toFixed(2)}`, barX, h * 0.62, palette.ink, 12);
+      label(ctx, s.shifting ? "SHIFTING" : "HELD", w * 0.78, h * 0.3, s.shifting ? palette.ink : palette.muted, 11);
+    },
+    sketch: sketchTemplate(`
+let s;
+function setup() {
+  createCanvas(620, 320);
+  textFont('Oswald');
+  s = Waves.createSampler({ shift: true, shiftInterval: 3, shiftDuration: 1.2, group: 'gentle' });
+}
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  s.sample(0, t);
+  noFill(); stroke(0); rect(width * 0.08, height * 0.18, width * 0.84, height * 0.64);
+  fill(120); noStroke(); textSize(11); text('ACTIVE', width * 0.12, height * 0.3);
+  fill(0); textSize(22); text(s.waveName, width * 0.12, height * 0.43);
+  fill(120); textSize(11); text('TARGET', width * 0.12, height * 0.6);
+  fill(0); textSize(18); text(s.targetName, width * 0.12, height * 0.73);
+  const bx = width * 0.5, bw = width * 0.36;
+  fill(220); rect(bx, height * 0.7, bw, 8);
+  fill(s.shifting ? '#f6a796' : '#c7e89c'); rect(bx, height * 0.7, bw * (s.mix || 0), 8);
+  fill(0); textSize(12); text('mix ' + nf(s.mix || 0, 1, 2), bx, height * 0.62);
+}`)
+  },
 
-rect(x, y + 30, sampler.mix * 90, 4);`,
+  {
+    id: "wave-roster",
+    name: "Wave Roster",
+    category: "state",
+    role: "Display the active wave name in display type and let the shift speak for itself.",
+    tags: ["sampler", "shift", "name"],
+    primitive: PRIMITIVES.sampler,
+    reuse: "live labels",
+    notes: "Shift gives you a slow stream of changing wave names — a typographic showcase of the 34 formulas.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.paper);
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({ shift: true, shiftInterval: 2.5, shiftDuration: 1, group: "all" });
+      }
+      state.sampler.sample(0, t);
+      const s = state.sampler;
+      const fontSize = Math.min(46, w * 0.085);
+      ctx.fillStyle = palette.ink;
+      ctx.font = `600 ${fontSize}px Oswald, sans-serif`;
+      ctx.textBaseline = "middle";
+      ctx.fillText(s.waveName.toUpperCase(), w * 0.08, h * 0.45);
+      const next = s.shifting ? `→ ${s.targetName}` : "held";
+      ctx.font = `500 ${Math.round(fontSize * 0.32)}px Oswald, sans-serif`;
+      ctx.fillStyle = palette.muted;
+      ctx.fillText(next.toUpperCase(), w * 0.08, h * 0.7);
+      ctx.fillStyle = s.shifting ? palette.peach : palette.mint;
+      ctx.fillRect(w * 0.08, h * 0.82, w * 0.84 * (s.mix || (s.shifting ? 0 : 1)), 4);
+    },
+    sketch: sketchTemplate(`
+let s;
+function setup() {
+  createCanvas(620, 320);
+  textFont('Oswald');
+  s = Waves.createSampler({ shift: true, shiftInterval: 2.5, shiftDuration: 1 });
+}
+function draw() {
+  background(244);
+  const t = millis() / 1000;
+  s.sample(0, t);
+  noStroke(); fill(0); textSize(46);
+  text(s.waveName.toUpperCase(), width * 0.08, height * 0.5);
+  fill(120); textSize(14);
+  text(s.shifting ? '→ ' + s.targetName.toUpperCase() : 'HELD', width * 0.08, height * 0.72);
+  fill(s.shifting ? '#f6a796' : '#c7e89c');
+  rect(width * 0.08, height * 0.82, width * 0.84 * (s.mix || (s.shifting ? 0 : 1)), 4);
+}`)
+  },
+
+  {
+    id: "morph-crossfade",
+    name: "Morph Crossfade",
+    category: "motion",
+    role: "wave: [a, b] + mix blends two formulas in one call. Here: sine ⟷ batman.",
+    tags: ["morph", "mix"],
+    primitive: PRIMITIVES.wave,
+    reuse: "transitions",
+    notes: "A mix oscillator gives you a smooth crossfade between two characters of motion.",
     draw(ctx, w, h, t) {
-      clear(ctx, w, h, "#eef1f2");
-      const mix = norm(wave("sine", t, 0.18));
-      const activeValue = mixWave("sine", "pulse", t, mix);
-      ctx.fillStyle = palette.panel;
+      clear(ctx, w, h, palette.panel);
+      const mix = (Math.sin(t * 0.4) + 1) / 2;
       ctx.strokeStyle = palette.ink;
       ctx.lineWidth = 2;
-      ctx.fillRect(w * 0.16, h * 0.2, w * 0.68, h * 0.6);
-      ctx.strokeRect(w * 0.16, h * 0.2, w * 0.68, h * 0.6);
-      drawLabel(ctx, "active: sine", w * 0.22, h * 0.38, palette.ink, 14);
-      drawLabel(ctx, "target: pulse", w * 0.22, h * 0.5, palette.ink, 14);
-      ctx.fillStyle = palette.line;
-      ctx.fillRect(w * 0.22, h * 0.62, w * 0.42, 9);
-      ctx.fillStyle = palette.blue;
-      ctx.fillRect(w * 0.22, h * 0.62, w * 0.42 * mix, 9);
-      ctx.fillStyle = activeValue > 0 ? palette.green : palette.red;
-      ctx.fillRect(w * 0.68, h * 0.38, 28, 52);
-    }
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += 3) {
+        const y = Waves.wave(x * 0.02, {
+          wave: ["classic sine", "batman"],
+          mix,
+          t: t * 0.6,
+          amplitude: h * 0.32
+        });
+        if (x === 0) ctx.moveTo(x, h * 0.5 + y);
+        else ctx.lineTo(x, h * 0.5 + y);
+      }
+      ctx.stroke();
+      label(ctx, `mix ${mix.toFixed(2)}  sine → batman`, 14, h - 18, palette.ink, 12);
+    },
+    sketch: sketchTemplate(`
+function setup() { createCanvas(620, 320); noFill(); }
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const mix = (sin(t * 0.4) + 1) / 2;
+  stroke(0); strokeWeight(2);
+  beginShape();
+  for (let x = 0; x <= width; x += 3) {
+    const y = Waves.wave(x * 0.02, {
+      wave: ['classic sine', 'batman'],
+      mix, t: t * 0.6, amplitude: height * 0.32
+    });
+    vertex(x, height / 2 + y);
+  }
+  endShape();
+  noStroke(); fill(0); textSize(12);
+  text('mix ' + nf(mix, 1, 2) + '  sine → batman', 14, height - 14);
+}`)
   },
+
   {
     id: "adaptive-columns",
     name: "Adaptive Columns",
     category: "layout",
-    role: "One value opens spacing between columns while keeping the layout stable.",
-    tags: ["layout", "spacing", "columns"],
-    primitive: "Waves.wave()",
-    reuse: "editorial grids",
-    notes: "A layout rhythm for editorial blocks, dashboards, or any grid that needs subtle breathing room.",
-    code: `const v = (Waves.wave(t, { wave: "sine" }) + 1) / 2;
-const gap = lerp(8, 34, v);
-
-drawColumns({ gap });`,
+    role: "Column widths breathe with a single wave value, keeping rhythm without redesigning.",
+    tags: ["columns", "spacing"],
+    primitive: PRIMITIVES.wave,
+    reuse: "page layouts",
+    notes: "Use to give a static layout a small living quality without losing its structure.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(wave("sine", t, 0.28));
-      const gap = lerp(8, 36, v);
-      const margin = w * 0.12;
-      const available = w - margin * 2 - gap * 2;
-      const colW = available / 3;
-      for (let i = 0; i < 3; i++) {
-        const x = margin + i * (colW + gap);
-        ctx.fillStyle = [palette.red, palette.teal, palette.yellow][i];
-        ctx.fillRect(x, h * 0.24, colW, h * 0.52);
-        ctx.fillStyle = "rgba(255,255,255,0.78)";
-        ctx.fillRect(x + 10, h * 0.3, colW - 20, 8);
-        ctx.fillRect(x + 10, h * 0.38, colW - 28, 8);
-        ctx.fillRect(x + 10, h * 0.46, colW - 36, 8);
-      }
-    }
+      const v = norm(Waves.wave(0, { wave: "classic sine", t: t * 0.32, amplitude: 1 }));
+      const ratios = [1 + v * 0.8, 1.4 - v * 0.5, 0.9 + v * 0.4, 1.2 - v * 0.3];
+      const total = ratios.reduce((a, b) => a + b, 0);
+      let x = w * 0.06;
+      const top = h * 0.18;
+      const colH = h * 0.64;
+      ratios.forEach((r, i) => {
+        const cw = (w * 0.88) * (r / total) - 8;
+        ctx.fillStyle = i === 0 ? palette.ink : palette.paper;
+        ctx.strokeStyle = palette.ink;
+        ctx.lineWidth = 1.2;
+        ctx.fillRect(x, top, cw, colH);
+        ctx.strokeRect(x, top, cw, colH);
+        if (i === 0) {
+          ctx.fillStyle = palette.paper;
+          for (let k = 0; k < 4; k++) {
+            ctx.fillRect(x + 12, top + 16 + k * 16, cw - 24, 4);
+          }
+        }
+        x += cw + 8;
+      });
+    },
+    sketch: sketchTemplate(`
+function setup() { createCanvas(620, 320); }
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const v = (Waves.wave(0, { wave: 'classic sine', t: t * 0.32, amplitude: 1 }) + 1) / 2;
+  const ratios = [1 + v * 0.8, 1.4 - v * 0.5, 0.9 + v * 0.4, 1.2 - v * 0.3];
+  const total = ratios.reduce((a, b) => a + b, 0);
+  let x = width * 0.06;
+  const top = height * 0.18, colH = height * 0.64;
+  for (let i = 0; i < ratios.length; i++) {
+    const cw = (width * 0.88) * (ratios[i] / total) - 8;
+    stroke(0); fill(i === 0 ? 0 : 244);
+    rect(x, top, cw, colH);
+    x += cw + 8;
+  }
+}`)
   },
+
   {
     id: "scanning-divider",
     name: "Scanning Divider",
-    category: "motion",
-    role: "A ramp wave moves a divider through a section and leaves a clear before/after read.",
-    tags: ["motion", "divider", "scan"],
-    primitive: "Waves.wave()",
-    reuse: "inspection dividers",
-    notes: "Use it as a section marker, comparison slider, inspection line, or live archive scanner.",
-    code: `const scan = (Waves.wave(t, { wave: "ramp" }) + 1) / 2;
-const x = scan * width;
-
-line(x, 0, x, height);
-rect(0, 0, x, height);`,
+    category: "layout",
+    role: "A bright tick travels along a horizontal rule — divider as event, not decoration.",
+    tags: ["divider", "scan"],
+    primitive: PRIMITIVES.wave,
+    reuse: "section breaks",
+    notes: "Useful between dense modules where a static rule would feel inert.",
     draw(ctx, w, h, t) {
-      clear(ctx, w, h, "#f0f2f4");
-      const scan = norm(wave("ramp", t, 0.2));
-      const x = scan * w;
-      ctx.fillStyle = palette.ink;
-      ctx.fillRect(0, 0, x, h);
-      ctx.strokeStyle = palette.red;
-      ctx.lineWidth = 5;
+      clear(ctx, w, h, palette.panel);
+      ctx.strokeStyle = palette.ink;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
+      ctx.moveTo(w * 0.08, h * 0.5);
+      ctx.lineTo(w * 0.92, h * 0.5);
       ctx.stroke();
-      ctx.fillStyle = x > w * 0.52 ? palette.paper : palette.ink;
-      ctx.font = "900 28px Inter, system-ui, sans-serif";
-      ctx.textBaseline = "middle";
-      ctx.fillText("INDEX", w * 0.18, h * 0.5);
-      ctx.fillStyle = x > w * 0.72 ? palette.paper : palette.ink;
-      ctx.fillText("LIVE", w * 0.64, h * 0.5);
-    }
+      const v = norm(Waves.wave(0, { wave: "saw up", t: t * 0.4, amplitude: 1 }));
+      const tickX = w * 0.08 + w * 0.84 * v;
+      ctx.fillStyle = palette.peach;
+      ctx.fillRect(tickX - 3, h * 0.5 - 16, 6, 32);
+      ctx.fillStyle = palette.ink;
+      ctx.fillRect(tickX - 1, h * 0.5 - 24, 2, 48);
+      label(ctx, "POSITION " + Math.round(v * 100), tickX + 12, h * 0.5 + 36, palette.muted, 11);
+    },
+    sketch: sketchTemplate(`
+function setup() { createCanvas(620, 320); }
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const v = (Waves.wave(0, { wave: 'saw up', t: t * 0.4, amplitude: 1 }) + 1) / 2;
+  stroke(0); strokeWeight(1.5);
+  line(width * 0.08, height / 2, width * 0.92, height / 2);
+  const tx = width * 0.08 + width * 0.84 * v;
+  noStroke(); fill(246, 167, 150); rect(tx - 3, height / 2 - 16, 6, 32);
+  fill(0); rect(tx - 1, height / 2 - 24, 2, 48);
+}`)
   },
+
   {
     id: "word-gate",
     name: "Word Gate",
     category: "type",
-    role: "A pulse wave gives permission for one word to appear while others stay quiet.",
-    tags: ["type", "gate", "caption"],
-    primitive: "Waves.wave()",
-    reuse: "alerts and labels",
-    notes: "A direct module for alerts, poetry fragments, changing labels, or interface microcopy.",
-    code: `const gate = Waves.wave(t, { wave: "pulse", speed: 0.5 });
-const word = gate > 0 ? "OPEN" : "HOLD";
-
-text(word, x, y);`,
+    role: "A pulse wave turns individual words on or off — copy becomes a sequencer.",
+    tags: ["gate", "pulse"],
+    primitive: PRIMITIVES.wave,
+    reuse: "typography",
+    notes: "Pulse + offset per word gives each word its own rhythm without animating every glyph.",
     draw(ctx, w, h, t) {
-      clear(ctx, w, h, palette.ink);
-      const gate = wave("pulse", t, 0.48);
-      const word = gate > 0 ? "OPEN" : "HOLD";
-      const color = gate > 0 ? palette.green : palette.red;
-      ctx.fillStyle = color;
-      ctx.fillRect(w * 0.18, h * 0.28, w * 0.64, h * 0.44);
-      ctx.fillStyle = palette.ink;
-      ctx.font = `900 ${Math.min(58, w * 0.15)}px Inter, system-ui, sans-serif`;
-      ctx.textAlign = "center";
+      clear(ctx, w, h, palette.panel);
+      const words = ["READ", "PARSE", "BEND", "SHOW", "REPEAT"];
+      const fontSize = Math.min(38, w * 0.075);
+      ctx.font = `600 ${fontSize}px Oswald, sans-serif`;
       ctx.textBaseline = "middle";
-      ctx.fillText(word, w * 0.5, h * 0.5);
-      ctx.textAlign = "left";
-    }
+      const widths = words.map(w => ctx.measureText(w).width);
+      const gap = 26;
+      const total = widths.reduce((a, b) => a + b, 0) + gap * (words.length - 1);
+      let x = (w - total) * 0.5;
+      const y = h * 0.5;
+      words.forEach((word, i) => {
+        const v = Waves.wave(i * 0.4, { wave: "pulse", t: t * 0.6, amplitude: 1 });
+        const on = v > 0;
+        ctx.fillStyle = on ? palette.ink : palette.line;
+        ctx.fillText(word, x, y);
+        if (on) {
+          ctx.fillStyle = palette.peach;
+          ctx.fillRect(x, y + fontSize * 0.55, widths[i], 4);
+        }
+        x += widths[i] + gap;
+      });
+    },
+    sketch: sketchTemplate(`
+const words = ['READ', 'PARSE', 'BEND', 'SHOW', 'REPEAT'];
+function setup() { createCanvas(620, 320); textFont('Oswald'); textSize(38); }
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const widths = words.map(w => textWidth(w));
+  const total = widths.reduce((a, b) => a + b, 0) + 26 * (words.length - 1);
+  let x = (width - total) / 2;
+  for (let i = 0; i < words.length; i++) {
+    const v = Waves.wave(i * 0.4, { wave: 'pulse', t: t * 0.6, amplitude: 1 });
+    const on = v > 0;
+    fill(on ? 0 : 220); text(words[i], x, height / 2);
+    if (on) { fill(246, 167, 150); rect(x, height / 2 + 20, widths[i], 4); }
+    x += widths[i] + 26;
+  }
+}`)
   },
+
   {
     id: "row-pulse",
     name: "Row Pulse",
     category: "grid",
-    role: "Offset wave samples turn rows on one after another.",
-    tags: ["grid", "rows", "sequence"],
-    primitive: "sampler.sample()",
-    reuse: "tables and menus",
-    notes: "A useful behavior for menus, tables, scoreboards, and any repeated UI that needs a sweep.",
-    code: `rows.forEach((row, i) => {
-  const v = sampler.sample(i, t);
-  row.active = v > 0.35;
-});`,
+    role: "One row is highlighted at a time — a vertical scanner across rows.",
+    tags: ["scanner", "row"],
+    primitive: PRIMITIVES.wave,
+    reuse: "data tables",
+    notes: "Practical for list states, focus rows, and reading guides.",
     draw(ctx, w, h, t) {
-      clear(ctx, w, h, "#ffffff");
+      clear(ctx, w, h, palette.panel);
       const rows = 7;
-      const rowH = h * 0.1;
-      const gap = h * 0.026;
-      const startY = (h - rows * rowH - (rows - 1) * gap) * 0.5;
-      for (let i = 0; i < rows; i++) {
-        const v = norm(wave("sine", t, 0.42, i * 0.12));
-        const x = w * 0.14;
-        const y = startY + i * (rowH + gap);
-        ctx.fillStyle = v > 0.72 ? palette.blue : "#dce2e6";
-        ctx.fillRect(x, y, w * 0.72, rowH);
-        ctx.fillStyle = v > 0.72 ? palette.paper : palette.ink;
-        ctx.fillRect(x + 12, y + rowH * 0.35, (w * 0.52) * v, rowH * 0.3);
+      const rh = h * 0.78 / rows;
+      const top = h * 0.11;
+      const v = norm(Waves.wave(0, { wave: "saw up", t: t * 0.5, amplitude: 1 }));
+      const active = clamp(Math.floor(v * rows), 0, rows - 1);
+      for (let r = 0; r < rows; r++) {
+        const y = top + r * rh;
+        ctx.fillStyle = r === active ? palette.lemon : palette.paper;
+        ctx.fillRect(w * 0.08, y, w * 0.84, rh - 4);
+        ctx.fillStyle = r === active ? palette.ink : palette.line;
+        ctx.fillRect(w * 0.08, y, 4, rh - 4);
+        ctx.fillStyle = r === active ? palette.ink : palette.muted;
+        label(ctx, `row ${String(r).padStart(2, "0")}`, w * 0.11, y + (rh - 4) * 0.5, undefined, 12);
       }
-    }
+    },
+    sketch: sketchTemplate(`
+function setup() { createCanvas(620, 320); }
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const rows = 7;
+  const rh = height * 0.78 / rows, top = height * 0.11;
+  const v = (Waves.wave(0, { wave: 'saw up', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const active = constrain(floor(v * rows), 0, rows - 1);
+  for (let r = 0; r < rows; r++) {
+    const y = top + r * rh;
+    noStroke();
+    fill(r === active ? '#f3e679' : 244);
+    rect(width * 0.08, y, width * 0.84, rh - 4);
+    fill(r === active ? 0 : 215);
+    rect(width * 0.08, y, 4, rh - 4);
+  }
+}`)
   },
+
   {
     id: "halftone-field",
     name: "Halftone Field",
     category: "texture",
-    role: "A wave sets dot radius across a field for a repeatable density texture.",
-    tags: ["texture", "density", "pattern"],
-    primitive: "sampler.sample()",
-    reuse: "density masks",
-    notes: "Works as a print texture, mask layer, thumbnail treatment, or background pattern.",
-    code: `for (let i = 0; i < dots.length; i++) {
-  const v = sampler.sample(i, t);
-  circle(dots[i].x, dots[i].y, map(v, -1, 1, 2, 16));
-}`,
-    draw(ctx, w, h, t) {
-      clear(ctx, w, h, "#eef1f2");
-      const cols = 13;
-      const rows = 8;
-      const stepX = w / (cols + 1);
-      const stepY = h / (rows + 1);
-      for (let y = 1; y <= rows; y++) {
-        for (let x = 1; x <= cols; x++) {
-          const v = norm(wave("sine", t, 0.38, x * 0.08 + y * 0.17));
-          ctx.fillStyle = x % 3 === 0 ? palette.teal : palette.ink;
+    role: "Dot radius is driven by a per-position wave — a print halftone that breathes.",
+    tags: ["halftone", "dots"],
+    primitive: PRIMITIVES.sampler,
+    reuse: "print texture",
+    notes: "createSampler reuses the resolved config, fast enough for thousands of dots.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.paper);
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({ wave: "bumpy sine", range: [0, 1], frequency: 0.6 });
+      }
+      const cols = 28;
+      const rows = 12;
+      const cw = w / cols;
+      const ch = h / rows;
+      ctx.fillStyle = palette.ink;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const v = state.sampler.sample(c * 0.4 + r * 0.6, t * 0.5);
+          const rad = Math.max(0.5, v * Math.min(cw, ch) * 0.55);
           ctx.beginPath();
-          ctx.arc(x * stepX, y * stepY, lerp(2, 12, v), 0, TAU);
+          ctx.arc(c * cw + cw / 2, r * ch + ch / 2, rad, 0, Math.PI * 2);
           ctx.fill();
         }
       }
+    },
+    sketch: sketchTemplate(`
+let s;
+const COLS = 28, ROWS = 12;
+function setup() {
+  createCanvas(620, 320); noStroke(); fill(0);
+  s = Waves.createSampler({ wave: 'bumpy sine', range: [0, 1], frequency: 0.6 });
+}
+function draw() {
+  background(244);
+  const t = millis() / 1000;
+  const cw = width / COLS, ch = height / ROWS;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const v = s.sample(c * 0.4 + r * 0.6, t * 0.5);
+      circle(c * cw + cw / 2, r * ch + ch / 2, max(1, v * min(cw, ch) * 1.1));
     }
+  }
+}`)
   },
+
   {
     id: "oscillating-marker",
     name: "Oscillating Marker",
     category: "motion",
-    role: "A wave value moves one marker along a measured path while the scale stays fixed.",
-    tags: ["motion", "marker", "measure"],
-    primitive: "Waves.wave()",
-    reuse: "meters and timelines",
-    notes: "Useful for meters, timelines, and annotation systems where the moving part needs a stable reference.",
-    code: `const v = Waves.wave(t, { wave: "sine", speed: 0.8 });
-const x = map(v, -1, 1, left, right);
-
-line(left, y, right, y);
-circle(x, y, 16);`,
+    role: "A marker swings between two anchors — useful for index, focus, or step indicators.",
+    tags: ["marker", "step"],
+    primitive: PRIMITIVES.wave,
+    reuse: "stepper indicators",
+    notes: "Triangle gives a constant-velocity swing; sine gives a soft ease at the ends.",
     draw(ctx, w, h, t) {
-      clear(ctx, w, h, "#ffffff");
-      const left = w * 0.16;
-      const right = w * 0.84;
-      const y = h * 0.52;
-      const v = wave("sine", t, 0.8);
-      const x = lerp(left, right, norm(v));
+      clear(ctx, w, h, palette.panel);
+      const v = norm(Waves.wave(0, { wave: "triangle", t: t * 0.55, amplitude: 1 }));
+      const startX = w * 0.14;
+      const endX = w * 0.86;
+      const x = lerp(startX, endX, v);
+      const y = h * 0.5;
       ctx.strokeStyle = palette.line;
       ctx.lineWidth = 2;
-      for (let i = 0; i <= 8; i++) {
-        const tickX = lerp(left, right, i / 8);
-        ctx.beginPath();
-        ctx.moveTo(tickX, y - 22);
-        ctx.lineTo(tickX, y + 22);
-        ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(startX, y); ctx.lineTo(endX, y); ctx.stroke();
+      for (let i = 0; i <= 4; i++) {
+        const ax = lerp(startX, endX, i / 4);
+        ctx.fillStyle = palette.ink;
+        ctx.fillRect(ax - 1, y - 6, 2, 12);
       }
+      ctx.fillStyle = palette.peach;
+      ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = palette.ink;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(left, y);
-      ctx.lineTo(right, y);
-      ctx.stroke();
-      ctx.fillStyle = palette.yellow;
-      ctx.strokeStyle = palette.ink;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(x, y, 18, 0, TAU);
-      ctx.fill();
-      ctx.stroke();
-      drawLabel(ctx, v.toFixed(2), x - 15, y - 42, palette.ink, 12);
-    }
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI * 2); ctx.stroke();
+    },
+    sketch: sketchTemplate(`
+function setup() { createCanvas(620, 320); }
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const v = (Waves.wave(0, { wave: 'triangle', t: t * 0.55, amplitude: 1 }) + 1) / 2;
+  const sx = width * 0.14, ex = width * 0.86, y = height / 2;
+  stroke(220); strokeWeight(2); line(sx, y, ex, y);
+  noStroke(); fill(0);
+  for (let i = 0; i <= 4; i++) rect(lerp(sx, ex, i / 4) - 1, y - 6, 2, 12);
+  fill(246, 167, 150); stroke(0); strokeWeight(1.5);
+  circle(lerp(sx, ex, v), y, 28);
+}`)
   },
+
   {
     id: "wave-word-picker",
     name: "Wave Word Picker",
     category: "type",
-    role: "A normalized wave chooses one word from a controlled vocabulary.",
-    tags: ["type", "word", "selection"],
-    primitive: "Waves.wave()",
-    reuse: "mode labels",
-    notes: "A compact label module for changing modes, generated captions, or poetic interface states.",
-    code: `const words = ["soft", "sharp", "open", "dense"];
-const v = (Waves.wave(t, { wave: "triangle" }) + 1) / 2;
-const index = floor(v * words.length);
-
-text(words[index], x, y);`,
+    role: "A wave value indexes into a small list — copy becomes a rotating dial.",
+    tags: ["picker", "rotation"],
+    primitive: PRIMITIVES.wave,
+    reuse: "rotating copy",
+    notes: "Replace the word list to use this for tag clouds, status labels, or feature switches.",
     draw(ctx, w, h, t) {
-      clear(ctx, w, h, palette.paper);
-      const words = ["soft", "sharp", "open", "dense"];
-      const v = norm(wave("triangle", t, 0.36));
-      const active = clamp(Math.floor(v * words.length), 0, words.length - 1);
-      const colW = w / words.length;
-      ctx.font = `800 ${Math.min(28, w * 0.07)}px Inter, system-ui, sans-serif`;
-      ctx.textAlign = "center";
+      clear(ctx, w, h, palette.panel);
+      const options = ["DRIFT", "GATE", "PULSE", "FOLD", "SCAN", "SHIFT"];
+      const v = norm(Waves.wave(0, { wave: "stepped sine", t: t * 0.5, amplitude: 1 }));
+      const i = clamp(Math.floor(v * options.length), 0, options.length - 1);
+      const fontSize = Math.min(78, w * 0.16);
+      ctx.font = `600 ${fontSize}px Oswald, sans-serif`;
       ctx.textBaseline = "middle";
-      words.forEach((word, index) => {
-        const x = colW * index + colW * 0.5;
-        ctx.fillStyle = index === active ? palette.ink : "#d2d8dd";
-        ctx.fillRect(colW * index + 8, h * 0.34, colW - 16, h * 0.32);
-        ctx.fillStyle = index === active ? palette.paper : palette.ink;
-        ctx.fillText(word, x, h * 0.5);
-      });
-      ctx.textAlign = "left";
-      drawLabel(ctx, `choice ${active + 1}/${words.length}`, 16, h - 22, palette.muted, 12);
-    }
+      ctx.fillStyle = palette.ink;
+      ctx.fillText(options[i], w * 0.1, h * 0.5);
+      ctx.font = `500 13px Oswald, sans-serif`;
+      ctx.fillStyle = palette.muted;
+      ctx.fillText(`INDEX ${i} / ${options.length - 1}`, w * 0.1, h * 0.86);
+    },
+    sketch: sketchTemplate(`
+const opts = ['DRIFT', 'GATE', 'PULSE', 'FOLD', 'SCAN', 'SHIFT'];
+function setup() { createCanvas(620, 320); textFont('Oswald'); }
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const i = constrain(floor(v * opts.length), 0, opts.length - 1);
+  textSize(78); fill(0); text(opts[i], width * 0.1, height * 0.55);
+  textSize(13); fill(120); text('INDEX ' + i + ' / ' + (opts.length - 1), width * 0.1, height * 0.86);
+}`)
   },
+
   {
     id: "column-pulse",
     name: "Column Pulse",
     category: "grid",
-    role: "Offset samples brighten columns so a static grid gains a directional sweep.",
-    tags: ["grid", "columns", "sequence"],
-    primitive: "sampler.sample()",
-    reuse: "calendar columns",
-    notes: "A reusable behavior for calendars, schedules, rhythm charts, and any column-based interface.",
-    code: `for (let x = 0; x < cols; x++) {
-  const v = sampler.sample(x, t);
-  const active = v > 0.45;
-  drawColumn(x, active);
-}`,
+    role: "Columns light up in sequence — a horizontal scanner across a wide grid.",
+    tags: ["scanner", "column"],
+    primitive: PRIMITIVES.wave,
+    reuse: "focus indicators",
+    notes: "Pairs naturally with Row Pulse for a crosshair-style highlight.",
     draw(ctx, w, h, t) {
-      clear(ctx, w, h, "#eef1f2");
-      const cols = 9;
-      const rows = 5;
-      const gap = 6;
-      const cell = Math.min((w - gap * (cols + 1)) / cols, (h - gap * (rows + 1)) / rows);
-      const startX = (w - (cols * cell + (cols - 1) * gap)) * 0.5;
-      const startY = (h - (rows * cell + (rows - 1) * gap)) * 0.5;
-      for (let x = 0; x < cols; x++) {
-        const v = norm(wave("sine", t, 0.46, x * 0.1));
-        for (let y = 0; y < rows; y++) {
-          ctx.fillStyle = v > 0.68 ? palette.teal : "#cfd7dc";
-          if (y === 2 && v > 0.68) ctx.fillStyle = palette.yellow;
-          ctx.fillRect(startX + x * (cell + gap), startY + y * (cell + gap), cell, cell);
-        }
+      clear(ctx, w, h, palette.panel);
+      const cols = 14;
+      const cw = w * 0.84 / cols;
+      const startX = w * 0.08;
+      const v = norm(Waves.wave(0, { wave: "ramp", t: t * 0.55, amplitude: 1 }));
+      const active = clamp(Math.floor(v * cols), 0, cols - 1);
+      for (let c = 0; c < cols; c++) {
+        const x = startX + c * cw;
+        ctx.fillStyle = c === active ? palette.sky : palette.paper;
+        ctx.fillRect(x, h * 0.12, cw - 3, h * 0.76);
+        ctx.fillStyle = c === active ? palette.ink : palette.line;
+        ctx.fillRect(x, h * 0.12, cw - 3, 4);
       }
-    }
+    },
+    sketch: sketchTemplate(`
+function setup() { createCanvas(620, 320); noStroke(); }
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const cols = 14;
+  const cw = width * 0.84 / cols, sx = width * 0.08;
+  const v = (Waves.wave(0, { wave: 'ramp', t: t * 0.55, amplitude: 1 }) + 1) / 2;
+  const a = constrain(floor(v * cols), 0, cols - 1);
+  for (let c = 0; c < cols; c++) {
+    fill(c === a ? '#b8d2ff' : 244);
+    rect(sx + c * cw, height * 0.12, cw - 3, height * 0.76);
+    fill(c === a ? 0 : 215);
+    rect(sx + c * cw, height * 0.12, cw - 3, 4);
+  }
+}`)
   },
+
   {
     id: "opacity-rhythm",
     name: "Opacity Rhythm",
     category: "color",
-    role: "One wave value fades a color layer in and out without changing the composition.",
-    tags: ["color", "opacity", "layer"],
-    primitive: "Waves.wave()",
-    reuse: "layer emphasis",
-    notes: "Useful when emphasis should breathe over a fixed image, map, diagram, or editorial block.",
-    code: `const alpha = map(Waves.wave(t), -1, 1, 0.15, 0.85);
-
-tint(accentColor, alpha);
-rect(x, y, w, h);`,
-    draw(ctx, w, h, t) {
-      clear(ctx, w, h, "#ffffff");
-      drawGuide(ctx, w, h);
-      const alpha = lerp(0.15, 0.85, norm(wave("sine", t, 0.32)));
-      ctx.fillStyle = palette.ink;
-      ctx.fillRect(w * 0.14, h * 0.22, w * 0.72, h * 0.56);
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = palette.red;
-      ctx.fillRect(w * 0.14, h * 0.22, w * 0.72, h * 0.56);
+    role: "Per-element opacity is offset along x — a single sampler animates a whole row.",
+    tags: ["alpha", "rhythm"],
+    primitive: PRIMITIVES.sampler,
+    reuse: "spacers",
+    notes: "Reusing one sampler over many indices is the canonical p5.waves pattern.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.panel);
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({ wave: "classic sine", range: [0.1, 1], frequency: 0.9 });
+      }
+      const count = 14;
+      const gap = 6;
+      const cw = (w * 0.86 - gap * (count - 1)) / count;
+      const startX = w * 0.07;
+      for (let i = 0; i < count; i++) {
+        const a = state.sampler.sample(i * 0.5, t * 0.6);
+        ctx.fillStyle = palette.ink;
+        ctx.globalAlpha = a;
+        ctx.fillRect(startX + i * (cw + gap), h * 0.22, cw, h * 0.56);
+      }
       ctx.globalAlpha = 1;
-      ctx.fillStyle = palette.panel;
-      ctx.fillRect(w * 0.2, h * 0.38, w * 0.3, 12);
-      ctx.fillRect(w * 0.2, h * 0.48, w * 0.46, 12);
-      ctx.fillRect(w * 0.2, h * 0.58, w * 0.22, 12);
-      drawLabel(ctx, `alpha ${alpha.toFixed(2)}`, 16, h - 20, palette.ink, 12);
-    }
+    },
+    sketch: sketchTemplate(`
+let s;
+function setup() {
+  createCanvas(620, 320); noStroke();
+  s = Waves.createSampler({ wave: 'classic sine', range: [0.1, 1], frequency: 0.9 });
+}
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const n = 14, gap = 6;
+  const cw = (width * 0.86 - gap * (n - 1)) / n, sx = width * 0.07;
+  for (let i = 0; i < n; i++) {
+    fill(17, 18, 19, s.sample(i * 0.5, t * 0.6) * 255);
+    rect(sx + i * (cw + gap), height * 0.22, cw, height * 0.56);
+  }
+}`)
   },
+
   {
     id: "notification-rhythm",
     name: "Notification Rhythm",
     category: "interface",
-    role: "A pulse wave gates a badge between quiet and active states.",
-    tags: ["interface", "badge", "status"],
-    primitive: "Waves.wave()",
-    reuse: "sync indicators",
-    notes: "Use it for small alerts, sync indicators, recording states, or any status that should not look static.",
-    code: `const active = Waves.wave(t, { wave: "pulse" }) > 0;
-
-badge.fill(active ? alertColor : mutedColor);
-badge.label(active ? "live" : "idle");`,
+    role: "A pulse builds and decays — a heartbeat for unread counts, presence, or alerts.",
+    tags: ["pulse", "notification"],
+    primitive: PRIMITIVES.wave,
+    reuse: "alerts",
+    notes: "Combine wobble sine with a small dot to convey 'unread without urgency'.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const active = wave("pulse", t, 0.42) > 0;
-      ctx.fillStyle = "#eef1f2";
-      ctx.strokeStyle = palette.ink;
-      ctx.lineWidth = 2;
-      ctx.fillRect(w * 0.18, h * 0.27, w * 0.64, h * 0.46);
-      ctx.strokeRect(w * 0.18, h * 0.27, w * 0.64, h * 0.46);
-      ctx.fillStyle = active ? palette.red : "#b9c2c9";
-      ctx.beginPath();
-      ctx.arc(w * 0.32, h * 0.5, 18, 0, TAU);
-      ctx.fill();
-      drawLabel(ctx, active ? "live signal" : "idle signal", w * 0.42, h * 0.5, palette.ink, 18);
-      ctx.fillStyle = active ? palette.red : "#b9c2c9";
-      ctx.fillRect(w * 0.18, h * 0.73, w * 0.64, 8);
-    }
+      const v = norm(Waves.wave(0, { wave: "wobble sine", t: t * 0.55, amplitude: 1 }));
+      const cx = w * 0.32;
+      const cy = h * 0.5;
+      ctx.fillStyle = palette.peach;
+      ctx.globalAlpha = 0.4;
+      ctx.beginPath(); ctx.arc(cx, cy, 38 + v * 22, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = palette.peach;
+      ctx.beginPath(); ctx.arc(cx, cy, 24, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = palette.panel;
+      ctx.font = "600 14px Oswald, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("12", cx, cy);
+      ctx.textAlign = "left";
+      label(ctx, "NEW ACTIVITY", w * 0.46, cy - 8, palette.ink, 14);
+      label(ctx, "12 unread, last seen 4m ago", w * 0.46, cy + 14, palette.muted, 12);
+    },
+    sketch: sketchTemplate(`
+function setup() { createCanvas(620, 320); textFont('Oswald'); }
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const v = (Waves.wave(0, { wave: 'wobble sine', t: t * 0.55, amplitude: 1 }) + 1) / 2;
+  const cx = width * 0.32, cy = height / 2;
+  noStroke(); fill(246, 167, 150, 100); circle(cx, cy, 76 + v * 44);
+  fill(246, 167, 150); circle(cx, cy, 48);
+  fill(255); textSize(14); textAlign(CENTER, CENTER); text('12', cx, cy);
+  textAlign(LEFT, BASELINE); fill(0); text('NEW ACTIVITY', width * 0.46, cy);
+}`)
   },
+
   {
     id: "transition-meter",
     name: "Transition Meter",
     category: "state",
-    role: "A mix value shows the visible progress between one wave voice and another.",
-    tags: ["state", "transition", "mix"],
-    primitive: "sampler.mix",
-    reuse: "transition controls",
-    notes: "A clear readout for tools that shift between behaviors and need to expose the change.",
-    code: `const mix = sampler.mix;
-const value = lerp(sineValue, triangleValue, mix);
-
-drawMeter(mix);
-drawSignal(value);`,
-    draw(ctx, w, h, t) {
-      clear(ctx, w, h, "#ffffff");
-      const mix = norm(wave("sine", t, 0.22));
-      const y = h * 0.5;
-      ctx.strokeStyle = palette.line;
-      ctx.lineWidth = 1;
-      for (let x = 0; x < w; x += 10) {
-        const p = x / w;
-        const value = mixWave("sine", "triangle", t + p, mix);
-        const py = y + value * h * 0.22;
-        if (x === 0) ctx.beginPath();
-        ctx.lineTo(x, py);
+    role: "Read sampler.mix as a progress meter during a wave morph.",
+    tags: ["mix", "transition"],
+    primitive: PRIMITIVES.sampler,
+    reuse: "state transitions",
+    notes: "When the sampler is shifting, mix climbs 0→1; otherwise it sits at 0 (held).",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.panel);
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({ shift: true, shiftInterval: 2, shiftDuration: 1.4, group: "gentle" });
       }
-      ctx.strokeStyle = palette.ink;
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      ctx.fillStyle = palette.line;
-      ctx.fillRect(w * 0.16, h * 0.76, w * 0.68, 10);
-      ctx.fillStyle = palette.blue;
-      ctx.fillRect(w * 0.16, h * 0.76, w * 0.68 * mix, 10);
-      drawLabel(ctx, "sine", w * 0.16, h * 0.24, palette.muted, 12);
-      drawLabel(ctx, "triangle", w * 0.7, h * 0.24, palette.muted, 12);
-    }
+      state.sampler.sample(0, t);
+      const s = state.sampler;
+      const radius = Math.min(w, h) * 0.32;
+      const cx = w * 0.5;
+      const cy = h * 0.5;
+      const angle = (s.mix || 0) * Math.PI * 2;
+      ctx.lineWidth = 14;
+      ctx.strokeStyle = palette.line;
+      ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = s.shifting ? palette.peach : palette.mint;
+      ctx.beginPath(); ctx.arc(cx, cy, radius, -Math.PI / 2, -Math.PI / 2 + angle); ctx.stroke();
+      ctx.font = "600 30px Oswald, sans-serif";
+      ctx.fillStyle = palette.ink;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`${Math.round((s.mix || 0) * 100)}%`, cx, cy - 6);
+      ctx.font = "500 11px Oswald, sans-serif";
+      ctx.fillStyle = palette.muted;
+      ctx.fillText(s.shifting ? "MORPHING" : "HELD", cx, cy + 18);
+      ctx.textAlign = "left";
+    },
+    sketch: sketchTemplate(`
+let s;
+function setup() {
+  createCanvas(620, 320); textFont('Oswald');
+  s = Waves.createSampler({ shift: true, shiftInterval: 2, shiftDuration: 1.4, group: 'gentle' });
+}
+function draw() {
+  background(255);
+  s.sample(0, millis() / 1000);
+  const cx = width / 2, cy = height / 2, r = min(width, height) * 0.32;
+  strokeWeight(14); noFill();
+  stroke(220); circle(cx, cy, r * 2);
+  stroke(s.shifting ? '#f6a796' : '#c7e89c');
+  arc(cx, cy, r * 2, r * 2, -PI / 2, -PI / 2 + (s.mix || 0) * TWO_PI);
+  noStroke(); fill(0); textAlign(CENTER, CENTER); textSize(30);
+  text(round((s.mix || 0) * 100) + '%', cx, cy - 6);
+}`)
   },
+
   {
     id: "rhythmic-divider",
     name: "Rhythmic Divider",
     category: "layout",
-    role: "A wave changes divider weight so two content zones keep a living boundary.",
-    tags: ["layout", "divider", "section"],
-    primitive: "Waves.wave()",
-    reuse: "section rules",
-    notes: "Works as a section separator, running header rule, or editorial rhythm inside a larger layout.",
-    code: `const v = (Waves.wave(t, { wave: "bounce" }) + 1) / 2;
-const weight = lerp(2, 18, v);
-
-line(x, y, x + width, y, weight);`,
-    draw(ctx, w, h, t) {
-      clear(ctx, w, h, palette.paper);
-      const v = norm(wave("bounce", t, 0.4));
-      const weight = lerp(3, 20, v);
-      ctx.fillStyle = palette.panel;
-      ctx.fillRect(w * 0.13, h * 0.18, w * 0.74, h * 0.22);
-      ctx.fillRect(w * 0.13, h * 0.6, w * 0.74, h * 0.22);
-      ctx.fillStyle = palette.ink;
-      ctx.fillRect(w * 0.18, h * 0.26, w * 0.4, 8);
-      ctx.fillRect(w * 0.18, h * 0.68, w * 0.52, 8);
-      ctx.strokeStyle = palette.violet;
-      ctx.lineWidth = weight;
-      ctx.beginPath();
-      ctx.moveTo(w * 0.13, h * 0.5);
-      ctx.lineTo(w * 0.87, h * 0.5);
-      ctx.stroke();
-    }
+    role: "A divider made of pulses — the same wave drives all dashes at once.",
+    tags: ["divider", "dashes"],
+    primitive: PRIMITIVES.sampler,
+    reuse: "section breaks",
+    notes: "createSampler + per-index offset is the cheap, idiomatic way to drive a strip of marks.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.panel);
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({ wave: "pulse", amplitude: 1, frequency: 1 });
+      }
+      const dashes = 24;
+      const dx = w * 0.88 / dashes;
+      const startX = w * 0.06;
+      const y = h * 0.5;
+      for (let i = 0; i < dashes; i++) {
+        const v = state.sampler.sample(i * 0.4, t * 0.7);
+        const lift = v > 0 ? -10 : 10;
+        ctx.fillStyle = v > 0 ? palette.ink : palette.muted;
+        ctx.fillRect(startX + i * dx, y + lift - 2, dx * 0.7, 4);
+      }
+    },
+    sketch: sketchTemplate(`
+let s;
+function setup() {
+  createCanvas(620, 320); noStroke();
+  s = Waves.createSampler({ wave: 'pulse', amplitude: 1, frequency: 1 });
+}
+function draw() {
+  background(255);
+  const t = millis() / 1000, n = 24;
+  const dx = width * 0.88 / n, sx = width * 0.06, y = height / 2;
+  for (let i = 0; i < n; i++) {
+    const v = s.sample(i * 0.4, t * 0.7);
+    fill(v > 0 ? 0 : 130);
+    rect(sx + i * dx, y + (v > 0 ? -12 : 8), dx * 0.7, 4);
+  }
+}`)
   },
+
   {
     id: "pattern-tile",
     name: "Pattern Tile",
     category: "texture",
-    role: "A repeated wave sample sets the direction of small marks inside a tile.",
-    tags: ["texture", "tile", "export"],
-    primitive: "sampler.sample()",
-    reuse: "repeat pattern tiles",
-    notes: "A copyable source for repeat textures, SVG exports, brushes, and background pattern systems.",
-    code: `for (let i = 0; i < marks.length; i++) {
-  const v = sampler.sample(i, t);
-  rotate(v * HALF_PI);
-  line(-6, 0, 6, 0);
-}`,
-    draw(ctx, w, h, t) {
-      clear(ctx, w, h, "#eef1f2");
-      const cols = 10;
-      const rows = 6;
-      const stepX = w / cols;
-      const stepY = h / rows;
-      ctx.strokeStyle = palette.ink;
-      ctx.lineWidth = 3;
-      for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-          const cx = x * stepX + stepX * 0.5;
-          const cy = y * stepY + stepY * 0.5;
-          const v = wave("sine", t, 0.34, x * 0.07 + y * 0.13);
-          const angle = v * Math.PI * 0.5;
-          const length = Math.min(stepX, stepY) * 0.32;
-          ctx.save();
-          ctx.translate(cx, cy);
-          ctx.rotate(angle);
-          ctx.strokeStyle = (x + y) % 4 === 0 ? palette.red : palette.ink;
-          ctx.beginPath();
-          ctx.moveTo(-length, 0);
-          ctx.lineTo(length, 0);
-          ctx.stroke();
-          ctx.restore();
+    role: "createGrid yields a tileable pattern field — drop it on a poster or a fill area.",
+    tags: ["createGrid", "tile", "print"],
+    primitive: PRIMITIVES.grid,
+    reuse: "fill patterns",
+    notes: "Two pulses at same frequency make a checker; sine + pulse makes bands; sine + sine makes ovals.",
+    state: { grid: null, cols: 14, rows: 8 },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.paper);
+      if (!state.grid) {
+        state.grid = Waves.createGrid(state.cols, state.rows, {
+          waveRow: "pulse",
+          waveCol: "classic sine",
+          range: [0, 1],
+          speed: 0.6
+        });
+      }
+      const cells = state.grid.sample(t * 0.4);
+      const cw = w / state.cols;
+      const ch = h / state.rows;
+      for (let r = 0; r < state.rows; r++) {
+        for (let c = 0; c < state.cols; c++) {
+          const v = cells[r * state.cols + c];
+          ctx.fillStyle = v > 0.55 ? palette.ink : (v > 0.3 ? palette.peach : palette.paper);
+          ctx.fillRect(c * cw, r * ch, cw + 0.5, ch + 0.5);
         }
       }
+    },
+    sketch: sketchTemplate(`
+let g;
+const COLS = 14, ROWS = 8;
+function setup() {
+  createCanvas(620, 320); noStroke();
+  g = Waves.createGrid(COLS, ROWS, {
+    waveRow: 'pulse', waveCol: 'classic sine',
+    range: [0, 1], speed: 0.6
+  });
+}
+function draw() {
+  background(244);
+  const cells = g.sample(millis() / 1000 * 0.4);
+  const cw = width / COLS, ch = height / ROWS;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const v = cells[r * COLS + c];
+      fill(v > 0.55 ? 0 : (v > 0.3 ? '#f6a796' : 244));
+      rect(c * cw, r * ch, cw + 0.5, ch + 0.5);
     }
+  }
+}`)
   },
+
   {
     id: "cursor-echo",
     name: "Cursor Echo",
     category: "motion",
-    role: "Offset wave samples place trailing marks behind a moving pointer.",
-    tags: ["motion", "cursor", "trail"],
-    primitive: "sampler.sample()",
-    reuse: "guided pointers",
-    notes: "A small path-following behavior for cursors, guided tours, drawing tools, and annotation trails.",
-    code: `for (let i = 0; i < echoes; i++) {
-  const v = sampler.sample(i, t);
-  const x = pointer.x - i * 16;
-  const y = baseline + v * 28;
-  circle(x, y, 12 - i);
-}`,
-    draw(ctx, w, h, t) {
-      clear(ctx, w, h, "#ffffff");
-      const left = w * 0.12;
-      const right = w * 0.88;
-      const baseline = h * 0.52;
-      ctx.strokeStyle = palette.line;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      for (let x = left; x <= right; x += 8) {
-        const p = (x - left) / (right - left);
-        const y = baseline + wave("sine", t, 0.58, p * 0.52) * h * 0.16;
-        if (x === left) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
+    role: "Multiple trailing dots — each one a single sampler call with a per-trail offset.",
+    tags: ["trail", "echo"],
+    primitive: PRIMITIVES.sampler,
+    reuse: "pointer feedback",
+    notes: "In production you'd offset by past pointer time; here the wave stands in for time.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.panel);
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({ wave: "classic sine", range: [-1, 1] });
       }
-      ctx.stroke();
-
-      const travel = norm(wave("ramp", t, 0.18));
-      const pointerX = lerp(left, right, travel);
-      const pointerY = baseline + wave("sine", t, 0.58, travel * 0.52) * h * 0.16;
-      for (let i = 6; i >= 0; i--) {
-        const echo = clamp(travel - i * 0.045, 0, 1);
-        const x = lerp(left, right, echo);
-        const y = baseline + wave("sine", t, 0.58, echo * 0.52) * h * 0.16;
-        ctx.globalAlpha = lerp(0.16, 0.92, 1 - i / 7);
-        ctx.fillStyle = i === 0 ? palette.red : palette.blue;
-        ctx.beginPath();
-        ctx.arc(x, y, lerp(4, 16, 1 - i / 7), 0, TAU);
-        ctx.fill();
+      const trails = 7;
+      for (let i = 0; i < trails; i++) {
+        const tx = state.sampler.sample(i * 0.3, t * 0.6);
+        const ty = state.sampler.sample(i * 0.3 + 12, t * 0.4);
+        const x = w * 0.5 + tx * w * 0.32;
+        const y = h * 0.5 + ty * h * 0.28;
+        const r = lerp(4, 16, i / (trails - 1));
+        ctx.fillStyle = palette.ink;
+        ctx.globalAlpha = lerp(0.2, 1, i / (trails - 1));
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
       }
       ctx.globalAlpha = 1;
-      drawLabel(ctx, "pointer trail", pointerX - 38, pointerY - 32, palette.ink, 12);
-    }
+    },
+    sketch: sketchTemplate(`
+let s;
+function setup() {
+  createCanvas(620, 320); noStroke();
+  s = Waves.createSampler({ wave: 'classic sine', range: [-1, 1] });
+}
+function draw() {
+  background(255);
+  const t = millis() / 1000, n = 7;
+  for (let i = 0; i < n; i++) {
+    const x = width / 2 + s.sample(i * 0.3, t * 0.6) * width * 0.32;
+    const y = height / 2 + s.sample(i * 0.3 + 12, t * 0.4) * height * 0.28;
+    fill(17, 18, 19, lerp(60, 255, i / (n - 1)));
+    circle(x, y, lerp(8, 32, i / (n - 1)));
+  }
+}`)
   },
+
   {
     id: "contrast-meter",
     name: "Contrast Meter",
     category: "color",
-    role: "A wave value raises and lowers contrast while keeping the palette fixed.",
-    tags: ["color", "contrast", "meter"],
-    primitive: "Waves.wave()",
-    reuse: "contrast previews",
-    notes: "Useful for previewing emphasis states, accessibility checks, and controlled color intensity changes.",
-    code: `const v = (Waves.wave(t, { wave: "sine" }) + 1) / 2;
-const ink = lerpColor(midInk, deepInk, v);
-const field = lerpColor(lightField, paper, v);
-
-drawContrastSample({ ink, field });`,
+    role: "Wave value drives a black/white split — readable as a brightness oscillation.",
+    tags: ["contrast", "split"],
+    primitive: PRIMITIVES.wave,
+    reuse: "preview chips",
+    notes: "A simple, expressive way to show a value's polarity at a glance.",
     draw(ctx, w, h, t) {
-      const v = norm(wave("sine", t, 0.26));
-      const field = Math.round(238 + v * 17);
-      const ink = Math.round(100 - v * 82);
-      clear(ctx, w, h, `rgb(${field}, ${field + 1}, ${field + 2})`);
-      ctx.fillStyle = `rgb(${ink}, ${ink + 4}, ${ink + 8})`;
-      ctx.fillRect(w * 0.14, h * 0.24, w * 0.72, h * 0.52);
-      ctx.fillStyle = palette.panel;
-      ctx.fillRect(w * 0.2, h * 0.36, w * 0.42, 14);
-      ctx.fillRect(w * 0.2, h * 0.49, w * 0.58, 14);
-      ctx.fillRect(w * 0.2, h * 0.62, w * 0.28, 14);
-      ctx.fillStyle = v > 0.55 ? palette.green : palette.yellow;
-      ctx.fillRect(w * 0.14, h * 0.8, w * 0.72 * v, 8);
-      drawLabel(ctx, v > 0.55 ? "high contrast" : "soft contrast", 16, 24, palette.ink, 13);
-    }
+      clear(ctx, w, h, palette.panel);
+      const v = norm(Waves.wave(0, { wave: "fade out", t: t * 0.5, amplitude: 1 }));
+      const splitX = w * 0.1 + w * 0.8 * v;
+      ctx.fillStyle = palette.ink;
+      ctx.fillRect(w * 0.1, h * 0.2, w * 0.8, h * 0.6);
+      ctx.fillStyle = palette.lemon;
+      ctx.fillRect(w * 0.1, h * 0.2, splitX - w * 0.1, h * 0.6);
+      ctx.fillStyle = palette.ink;
+      ctx.fillRect(splitX - 1, h * 0.2, 2, h * 0.6);
+      label(ctx, `BRIGHT ${Math.round(v * 100)}%`, w * 0.1, h * 0.93, palette.muted, 11);
+    },
+    sketch: sketchTemplate(`
+function setup() { createCanvas(620, 320); }
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const v = (Waves.wave(0, { wave: 'fade out', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const sx = width * 0.1 + width * 0.8 * v;
+  noStroke(); fill(0); rect(width * 0.1, height * 0.2, width * 0.8, height * 0.6);
+  fill('#f3e679'); rect(width * 0.1, height * 0.2, sx - width * 0.1, height * 0.6);
+}`)
   },
+
   {
     id: "hover-pulse",
     name: "Hover Pulse",
     category: "interface",
-    role: "A hover-ready control uses a wave as a focus ring and fill pulse.",
-    tags: ["interface", "button", "hover"],
-    primitive: "Waves.wave()",
-    reuse: "active controls",
-    notes: "A reusable button state for tools where active controls should feel responsive without jumping layout.",
-    code: `const hover = button.isHovered;
-const v = hover ? Waves.wave(t, { wave: "bounce" }) : -1;
-const pulse = map(v, -1, 1, 0, 1);
-
-drawButton({ pulse });`,
+    role: "A button highlight pulses while idle — readable affordance, low attention cost.",
+    tags: ["button", "pulse"],
+    primitive: PRIMITIVES.wave,
+    reuse: "cta buttons",
+    notes: "Replace the idle pulse with a faster wave on actual hover.",
     draw(ctx, w, h, t) {
-      clear(ctx, w, h, palette.paper);
-      const pulse = norm(wave("bounce", t, 0.48));
-      const x = w * 0.2;
-      const y = h * 0.34;
-      const buttonW = w * 0.6;
-      const buttonH = h * 0.28;
-      ctx.strokeStyle = `rgba(72, 109, 232, ${lerp(0.2, 0.9, pulse)})`;
-      ctx.lineWidth = lerp(3, 12, pulse);
-      ctx.strokeRect(x - 10, y - 10, buttonW + 20, buttonH + 20);
-      ctx.fillStyle = pulse > 0.5 ? palette.blue : palette.panel;
-      ctx.strokeStyle = palette.ink;
-      ctx.lineWidth = 2;
-      ctx.fillRect(x, y, buttonW, buttonH);
-      ctx.strokeRect(x, y, buttonW, buttonH);
-      ctx.fillStyle = pulse > 0.5 ? palette.panel : palette.ink;
-      ctx.font = `800 ${Math.min(24, w * 0.06)}px Inter, system-ui, sans-serif`;
+      clear(ctx, w, h, palette.panel);
+      const v = norm(Waves.wave(0, { wave: "classic sine", t: t * 0.6, amplitude: 1 }));
+      const bx = w * 0.22;
+      const by = h * 0.38;
+      const bw = w * 0.56;
+      const bh = h * 0.24;
+      ctx.fillStyle = palette.mint;
+      ctx.globalAlpha = 0.3 + v * 0.5;
+      ctx.fillRect(bx - 10, by - 10, bw + 20, bh + 20);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = palette.ink;
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.fillStyle = palette.paper;
+      ctx.font = "600 14px Oswald, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("APPLY", w * 0.5, y + buttonH * 0.5);
+      ctx.fillText("ACTIVATE", bx + bw / 2, by + bh / 2);
       ctx.textAlign = "left";
-      drawLabel(ctx, "hover signal", x, y + buttonH + 42, palette.muted, 12);
-    }
+    },
+    sketch: sketchTemplate(`
+function setup() { createCanvas(620, 320); textFont('Oswald'); }
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const v = (Waves.wave(0, { wave: 'classic sine', t: t * 0.6, amplitude: 1 }) + 1) / 2;
+  const bx = width * 0.22, by = height * 0.38, bw = width * 0.56, bh = height * 0.24;
+  noStroke(); fill(199, 232, 156, 75 + v * 128);
+  rect(bx - 10, by - 10, bw + 20, bh + 20);
+  fill(0); rect(bx, by, bw, bh);
+  fill(244); textSize(14); textAlign(CENTER, CENTER);
+  text('ACTIVATE', bx + bw / 2, by + bh / 2);
+}`)
   },
+
   {
     id: "mode-switcher",
     name: "Mode Switcher",
     category: "state",
-    role: "A normalized wave chooses the active mode in a compact segmented control.",
-    tags: ["state", "mode", "control"],
-    primitive: "Waves.wave()",
-    reuse: "tool mode switches",
-    notes: "A readable state module for switching between tools, wave voices, drawing modes, or preview layers.",
-    code: `const modes = ["draw", "scan", "sort"];
-const v = (Waves.wave(t, { wave: "triangle" }) + 1) / 2;
-const active = floor(v * modes.length);
-
-setMode(modes[active]);`,
+    role: "A stepped wave drops a selector between fixed slots — a wave-driven segmented control.",
+    tags: ["segmented", "modes"],
+    primitive: PRIMITIVES.wave,
+    reuse: "view switchers",
+    notes: "Stepped sine snaps to discrete values; great for switching modes without dragging.",
     draw(ctx, w, h, t) {
-      clear(ctx, w, h, "#ffffff");
-      const modes = ["draw", "scan", "sort"];
-      const v = norm(wave("triangle", t, 0.3));
+      clear(ctx, w, h, palette.panel);
+      const modes = ["LIVE", "DRAFT", "ARCHIVE"];
+      const v = norm(Waves.wave(0, { wave: "stepped sine", t: t * 0.4, amplitude: 1 }));
       const active = clamp(Math.floor(v * modes.length), 0, modes.length - 1);
-      const x = w * 0.12;
-      const y = h * 0.34;
-      const totalW = w * 0.76;
-      const cellW = totalW / modes.length;
-      modes.forEach((mode, index) => {
-        ctx.fillStyle = index === active ? palette.ink : "#eef1f2";
-        ctx.strokeStyle = palette.ink;
-        ctx.lineWidth = 2;
-        ctx.fillRect(x + index * cellW, y, cellW, h * 0.26);
-        ctx.strokeRect(x + index * cellW, y, cellW, h * 0.26);
-        ctx.fillStyle = index === active ? palette.paper : palette.ink;
-        ctx.font = `800 ${Math.min(20, w * 0.052)}px Inter, system-ui, sans-serif`;
+      const total = w * 0.84;
+      const startX = w * 0.08;
+      const segW = total / modes.length;
+      ctx.strokeStyle = palette.ink;
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(startX, h * 0.35, total, h * 0.3);
+      modes.forEach((m, i) => {
+        const sx = startX + i * segW;
+        if (i === active) {
+          ctx.fillStyle = palette.ink;
+          ctx.fillRect(sx, h * 0.35, segW, h * 0.3);
+        }
+        ctx.fillStyle = i === active ? palette.paper : palette.ink;
+        ctx.font = "600 14px Oswald, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(mode, x + index * cellW + cellW * 0.5, y + h * 0.13);
+        ctx.fillText(m, sx + segW / 2, h * 0.5);
       });
       ctx.textAlign = "left";
-      ctx.fillStyle = palette.blue;
-      ctx.fillRect(x, y + h * 0.38, totalW * v, 9);
-      drawLabel(ctx, `active mode: ${modes[active]}`, x, y + h * 0.52, palette.ink, 13);
-    }
+    },
+    sketch: sketchTemplate(`
+const modes = ['LIVE', 'DRAFT', 'ARCHIVE'];
+function setup() { createCanvas(620, 320); textFont('Oswald'); }
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 0.4, amplitude: 1 }) + 1) / 2;
+  const active = constrain(floor(v * modes.length), 0, modes.length - 1);
+  const total = width * 0.84, sx = width * 0.08, sw = total / modes.length;
+  noFill(); stroke(0); strokeWeight(1.5);
+  rect(sx, height * 0.35, total, height * 0.3);
+  noStroke(); textAlign(CENTER, CENTER); textSize(14);
+  for (let i = 0; i < modes.length; i++) {
+    const x = sx + i * sw;
+    if (i === active) { fill(0); rect(x, height * 0.35, sw, height * 0.3); }
+    fill(i === active ? 244 : 0); text(modes[i], x + sw / 2, height / 2);
+  }
+}`)
   },
+
   {
     id: "mask-aperture",
     name: "Mask Aperture",
-    category: "texture",
-    role: "A wave opens a clipping window over a repeating stripe layer.",
-    tags: ["texture", "mask", "reveal"],
-    primitive: "Waves.wave()",
-    reuse: "image reveals",
-    notes: "A practical mask behavior for thumbnails, posters, reveal transitions, and exportable image treatments.",
-    code: `const v = (Waves.wave(t, { wave: "sine" }) + 1) / 2;
-const radius = lerp(28, 120, v);
-
-clipCircle(cx, cy, radius);
-drawStripeTexture();`,
+    category: "interface",
+    role: "A wave opens and closes a circular mask — reveal that breathes.",
+    tags: ["mask", "reveal"],
+    primitive: PRIMITIVES.wave,
+    reuse: "previews",
+    notes: "Round linked sine gives a soft, organic opening — drop straight on top of any image fill.",
     draw(ctx, w, h, t) {
-      clear(ctx, w, h, palette.ink);
-      const v = norm(wave("sine", t, 0.24));
-      const radius = lerp(Math.min(w, h) * 0.14, Math.min(w, h) * 0.42, v);
-      const cx = w * 0.5 + wave("sine", t, 0.18, 0.2) * w * 0.12;
-      const cy = h * 0.5;
-      ctx.fillStyle = "#30353b";
-      for (let x = -w; x < w * 2; x += 16) {
-        ctx.fillRect(x, 0, 7, h);
-      }
+      clear(ctx, w, h, palette.panel);
+      // base "image"
+      const bands = [palette.peach, palette.pink, palette.sky, palette.lemon];
+      const bandH = h / bands.length;
+      bands.forEach((color, i) => {
+        ctx.fillStyle = color;
+        ctx.fillRect(0, i * bandH, w, bandH);
+      });
+      const v = norm(Waves.wave(0, { wave: "round linked sine", t: t * 0.5, amplitude: 1 }));
+      const r = lerp(20, Math.min(w, h) * 0.55, v);
       ctx.save();
+      ctx.globalCompositeOperation = "destination-in";
       ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, TAU);
-      ctx.clip();
-      clear(ctx, w, h, palette.paper);
-      for (let x = -w; x < w * 2; x += 18) {
-        ctx.fillStyle = x % 36 === 0 ? palette.red : palette.teal;
-        ctx.fillRect(x + wave("sine", t, 0.4, x * 0.002) * 12, 0, 9, h);
-      }
+      ctx.arc(w * 0.5, h * 0.5, r, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
-      ctx.strokeStyle = palette.yellow;
-      ctx.lineWidth = 4;
+      ctx.strokeStyle = palette.ink;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, TAU);
+      ctx.arc(w * 0.5, h * 0.5, r, 0, Math.PI * 2);
       ctx.stroke();
-    }
+    },
+    sketch: sketchTemplate(`
+let layer;
+function setup() {
+  createCanvas(620, 320);
+  layer = createGraphics(620, 320);
+}
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const v = (Waves.wave(0, { wave: 'round linked sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const r = lerp(20, min(width, height) * 0.55, v);
+  layer.clear();
+  const bands = ['#f6a796', '#f9b7c4', '#b8d2ff', '#f3e679'];
+  const bh = height / bands.length;
+  for (let i = 0; i < bands.length; i++) { layer.noStroke(); layer.fill(bands[i]); layer.rect(0, i * bh, width, bh); }
+  layer.erase(); layer.noStroke(); layer.rect(0, 0, width, height); layer.noErase();
+  // p5 mask: draw clipped circle via blend
+  drawingContext.save();
+  drawingContext.beginPath();
+  drawingContext.arc(width / 2, height / 2, r, 0, Math.PI * 2);
+  drawingContext.clip();
+  image(layer, 0, 0);
+  drawingContext.restore();
+  noFill(); stroke(0); strokeWeight(1.5); circle(width / 2, height / 2, r * 2);
+}`)
   },
+
   {
     id: "border-shift",
     name: "Border Shift",
     category: "layout",
-    role: "A wave moves an edge rule inward and outward to reshape a stable frame.",
-    tags: ["layout", "border", "frame"],
-    primitive: "Waves.wave()",
-    reuse: "selection frames",
-    notes: "Use it for section markers, active panels, selection frames, and layout systems with a visible pulse.",
-    code: `const v = (Waves.wave(t, { wave: "sine" }) + 1) / 2;
-const inset = lerp(8, 36, v);
-
-rect(inset, inset, width - inset * 2, height - inset * 2);`,
+    role: "An edge dashes left/right — a frame that quietly orients the eye.",
+    tags: ["edge", "indicator"],
+    primitive: PRIMITIVES.wave,
+    reuse: "card edges",
+    notes: "Use along the top edge of an active card to indicate freshness or focus.",
     draw(ctx, w, h, t) {
-      clear(ctx, w, h, "#ffffff");
-      const v = norm(wave("sine", t, 0.3));
-      const inset = lerp(12, 42, v);
-      ctx.fillStyle = "#eef1f2";
-      ctx.fillRect(w * 0.18, h * 0.22, w * 0.64, h * 0.56);
+      clear(ctx, w, h, palette.panel);
+      const v = norm(Waves.wave(0, { wave: "zig-zag sine", t: t * 0.6, amplitude: 1 }));
+      const x = w * 0.08 + w * 0.84 * v;
+      const cardX = w * 0.1;
+      const cardW = w * 0.8;
+      ctx.fillStyle = palette.paper;
+      ctx.strokeStyle = palette.ink;
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(cardX, h * 0.2, cardW, h * 0.6);
+      ctx.strokeRect(cardX, h * 0.2, cardW, h * 0.6);
       ctx.fillStyle = palette.ink;
-      ctx.fillRect(w * 0.25, h * 0.34, w * 0.32, 10);
-      ctx.fillRect(w * 0.25, h * 0.46, w * 0.48, 10);
-      ctx.fillRect(w * 0.25, h * 0.58, w * 0.24, 10);
-      ctx.strokeStyle = palette.red;
-      ctx.lineWidth = 5;
-      ctx.strokeRect(inset, inset, w - inset * 2, h - inset * 2);
-      drawLabel(ctx, `inset ${Math.round(inset)}px`, 16, h - 22, palette.muted, 12);
-    }
+      ctx.fillRect(cardX, h * 0.2 - 4, cardW, 4);
+      ctx.fillStyle = palette.peach;
+      ctx.fillRect(x - 22, h * 0.2 - 6, 44, 8);
+    },
+    sketch: sketchTemplate(`
+function setup() { createCanvas(620, 320); }
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const v = (Waves.wave(0, { wave: 'zig-zag sine', t: t * 0.6, amplitude: 1 }) + 1) / 2;
+  const x = width * 0.08 + width * 0.84 * v;
+  fill(244); stroke(0); strokeWeight(1.5);
+  rect(width * 0.1, height * 0.2, width * 0.8, height * 0.6);
+  noStroke(); fill(0); rect(width * 0.1, height * 0.2 - 4, width * 0.8, 4);
+  fill(246, 167, 150); rect(x - 22, height * 0.2 - 6, 44, 8);
+}`)
   },
+
   {
     id: "bending-caption",
     name: "Bending Caption",
     category: "type",
-    role: "Offset wave samples lift each letter into a controlled baseline bend.",
-    tags: ["type", "baseline", "caption"],
-    primitive: "sampler.sample()",
-    reuse: "caption baselines",
-    notes: "A small typographic behavior for captions, logos, labels, or headings that need motion without changing copy.",
-    code: `letters.forEach((letter, i) => {
-  const lift = sampler.sample(i, t) * 18;
-  text(letter, x + i * step, baseline + lift);
-});`,
-    draw(ctx, w, h, t) {
+    role: "Per-letter offsets bend a caption — micro-motion that reads as breath.",
+    tags: ["caption", "bend"],
+    primitive: PRIMITIVES.sampler,
+    reuse: "captions",
+    notes: "createSampler reused per letter index keeps allocations to zero per frame.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
-      const letters = "CURVE NOTE".split("");
-      const fontSize = Math.min(42, w * 0.092);
-      ctx.font = `900 ${fontSize}px Inter, system-ui, sans-serif`;
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({ wave: "classic sine", amplitude: 1 });
+      }
+      const text = "GENTLE   ⟶   HARSH";
+      const fontSize = Math.min(46, w * 0.085);
+      ctx.font = `600 ${fontSize}px Oswald, sans-serif`;
       ctx.textBaseline = "middle";
-      const gap = fontSize * 0.16;
-      const widths = letters.map(letter => ctx.measureText(letter).width || fontSize * 0.32);
-      const total = widths.reduce((sum, item) => sum + item, 0) + gap * (letters.length - 1);
+      const letters = text.split("");
+      const widths = letters.map(l => ctx.measureText(l).width || fontSize * 0.3);
+      const gap = 2;
+      const total = widths.reduce((a, b) => a + b, 0) + gap * (letters.length - 1);
       let x = (w - total) * 0.5;
-      const baseline = h * 0.52;
-      ctx.strokeStyle = palette.line;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(w * 0.14, baseline);
-      ctx.lineTo(w * 0.86, baseline);
-      ctx.stroke();
-      letters.forEach((letter, index) => {
-        const lift = wave("sine", t, 0.42, index * 0.09) * h * 0.12;
-        ctx.fillStyle = letter === " " ? palette.ink : (index % 3 === 0 ? palette.teal : palette.ink);
-        ctx.fillText(letter, x, baseline + lift);
-        x += widths[index] + gap;
+      const baseY = h * 0.55;
+      letters.forEach((l, i) => {
+        const v = state.sampler.sample(i * 0.25, t * 0.6);
+        ctx.fillStyle = palette.ink;
+        ctx.fillText(l, x, baseY + v * 14);
+        x += widths[i] + gap;
       });
-    }
+    },
+    sketch: sketchTemplate(`
+let s;
+function setup() {
+  createCanvas(620, 320); textFont('Oswald');
+  s = Waves.createSampler({ wave: 'classic sine', amplitude: 1 });
+}
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  const txt = 'GENTLE   →   HARSH';
+  textSize(46);
+  const widths = txt.split('').map(l => textWidth(l));
+  const total = widths.reduce((a, b) => a + b, 0) + 2 * (txt.length - 1);
+  let x = (width - total) / 2;
+  fill(0); textAlign(LEFT, CENTER);
+  for (let i = 0; i < txt.length; i++) {
+    text(txt[i], x, height * 0.55 + s.sample(i * 0.25, t * 0.6) * 14);
+    x += widths[i] + 2;
+  }
+}`)
   },
+
   {
     id: "cell-permission",
     name: "Cell Permission",
     category: "grid",
-    role: "A threshold wave decides which cells are allowed to become visible.",
-    tags: ["grid", "permission", "threshold"],
-    primitive: "Waves.wave()",
+    role: "A binary createGrid governs which cells are allowed to be on at all.",
+    tags: ["createGrid", "permission"],
+    primitive: PRIMITIVES.grid,
     reuse: "state grids",
-    notes: "This is a practical rule for dashboards, matrix editors, active seats, or any repeated state grid.",
-    code: `const permission = (Waves.wave(t, { wave: "sine" }) + 1) / 2;
-
-cells.forEach(cell => {
-  cell.visible = cell.signal > permission;
-});`,
-    draw(ctx, w, h, t) {
-      clear(ctx, w, h, "#eef1f2");
-      const cols = 12;
-      const rows = 7;
-      const gap = 6;
-      const cell = Math.min((w * 0.76 - gap * (cols - 1)) / cols, (h * 0.62 - gap * (rows - 1)) / rows);
-      const startX = (w - (cols * cell + (cols - 1) * gap)) * 0.5;
-      const startY = h * 0.2;
-      const permission = norm(wave("sine", t, 0.31));
-      for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-          const signal = norm(wave("triangle", t, 0.46, x * 0.06 + y * 0.1));
-          const active = signal > permission;
-          const px = startX + x * (cell + gap);
-          const py = startY + y * (cell + gap);
-          ctx.fillStyle = active ? palette.ink : "#cfd7dc";
-          ctx.fillRect(px, py, cell, cell);
-          if (active && (x + y) % 4 === 0) {
-            ctx.fillStyle = palette.yellow;
-            ctx.fillRect(px + cell * 0.25, py + cell * 0.25, cell * 0.5, cell * 0.5);
+    notes: "Practical for dashboards, seat maps, active permissions, and matrix editors.",
+    state: { grid: null, cols: 16, rows: 7 },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.panel);
+      if (!state.grid) {
+        state.grid = Waves.createGrid(state.cols, state.rows, {
+          waveRow: "classic sine",
+          waveCol: "triangle",
+          threshold: 0.2,
+          speed: 0.5
+        });
+      }
+      const cells = state.grid.sample(t * 0.6);
+      const gap = 4;
+      const cw = (w * 0.86 - gap * (state.cols - 1)) / state.cols;
+      const ch = (h * 0.7 - gap * (state.rows - 1)) / state.rows;
+      const sx = w * 0.07;
+      const sy = h * 0.15;
+      for (let r = 0; r < state.rows; r++) {
+        for (let c = 0; c < state.cols; c++) {
+          const v = cells[r * state.cols + c];
+          const x = sx + c * (cw + gap);
+          const y = sy + r * (ch + gap);
+          ctx.fillStyle = v === 1 ? palette.ink : "#dadcde";
+          ctx.fillRect(x, y, cw, ch);
+          if (v === 1 && (c + r) % 5 === 0) {
+            ctx.fillStyle = palette.lemon;
+            ctx.fillRect(x + cw * 0.25, y + ch * 0.25, cw * 0.5, ch * 0.5);
           }
         }
       }
-      drawLabel(ctx, `permission ${permission.toFixed(2)}`, w * 0.12, h * 0.9, palette.ink, 12);
-    }
+    },
+    sketch: sketchTemplate(`
+let g;
+const COLS = 16, ROWS = 7;
+function setup() {
+  createCanvas(620, 320); noStroke();
+  g = Waves.createGrid(COLS, ROWS, {
+    waveRow: 'classic sine', waveCol: 'triangle',
+    threshold: 0.2, speed: 0.5
+  });
+}
+function draw() {
+  background(255);
+  const cells = g.sample(millis() / 1000 * 0.6);
+  const gap = 4;
+  const cw = (width * 0.86 - gap * (COLS - 1)) / COLS;
+  const ch = (height * 0.7 - gap * (ROWS - 1)) / ROWS;
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    fill(cells[r * COLS + c] === 1 ? 0 : 218);
+    rect(width * 0.07 + c * (cw + gap), height * 0.15 + r * (ch + gap), cw, ch);
+  }
+}`)
+  },
+
+  {
+    id: "gentle-harsh-pair",
+    name: "Gentle vs Harsh",
+    category: "texture",
+    role: "Two samplers with the same shift, one group: 'gentle' and one group: 'harsh' — see the families.",
+    tags: ["group", "compare"],
+    primitive: PRIMITIVES.sampler,
+    reuse: "wave selection",
+    notes: "group: 'gentle' = 28 sines and curves; group: 'harsh' = 6 tan/noise/random formulas.",
+    state: { gentle: null, harsh: null },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.panel);
+      if (!state.gentle) {
+        state.gentle = Waves.createSampler({ shift: true, group: "gentle", amplitude: 1 });
+        state.harsh = Waves.createSampler({ shift: true, group: "harsh", amplitude: 1 });
+      }
+      const halfH = h * 0.42;
+      ctx.strokeStyle = palette.ink;
+      ctx.lineWidth = 1.6;
+      // gentle line
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += 2) {
+        const v = state.gentle.sample(x * 0.012, t * 0.6);
+        const y = h * 0.28 + v * halfH * 0.35;
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.strokeStyle = palette.peach;
+      // harsh line
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += 2) {
+        const v = state.harsh.sample(x * 0.012, t * 0.6);
+        const y = h * 0.72 + v * halfH * 0.35;
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      label(ctx, "GENTLE  " + state.gentle.waveName.toUpperCase(), 14, 18, palette.ink, 11);
+      label(ctx, "HARSH   " + state.harsh.waveName.toUpperCase(), 14, h * 0.5 + 18, palette.peach, 11);
+    },
+    sketch: sketchTemplate(`
+let gentle, harsh;
+function setup() {
+  createCanvas(620, 320); textFont('Oswald'); noFill();
+  gentle = Waves.createSampler({ shift: true, group: 'gentle', amplitude: 1 });
+  harsh  = Waves.createSampler({ shift: true, group: 'harsh',  amplitude: 1 });
+}
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  strokeWeight(1.6); stroke(0);
+  beginShape();
+  for (let x = 0; x <= width; x += 2) vertex(x, height * 0.28 + gentle.sample(x * 0.012, t * 0.6) * height * 0.15);
+  endShape();
+  stroke('#f6a796');
+  beginShape();
+  for (let x = 0; x <= width; x += 2) vertex(x, height * 0.72 + harsh.sample(x * 0.012, t * 0.6) * height * 0.15);
+  endShape();
+}`)
+  },
+
+  {
+    id: "wild-terrain",
+    name: "Wild Terrain",
+    category: "texture",
+    role: "mode: 'wild' + unpredictability warps any wave — terrain-like irregular skyline.",
+    tags: ["wild", "terrain"],
+    primitive: PRIMITIVES.sampler,
+    reuse: "skylines",
+    notes: "Wild mode is ~5× slower than stable — keep it off for 10k-point loops.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.panel);
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({
+          wave: "meta sine",
+          mode: "wild",
+          unpredictability: 0.5,
+          amplitude: h * 0.35,
+          frequency: 0.012
+        });
+      }
+      ctx.fillStyle = palette.lilac;
+      ctx.beginPath();
+      ctx.moveTo(0, h);
+      for (let x = 0; x <= w; x += 4) {
+        const y = h * 0.6 + state.sampler.sample(x, t * 0.1);
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(w, h);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = palette.ink;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += 4) {
+        const y = h * 0.6 + state.sampler.sample(x, t * 0.1);
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    },
+    sketch: sketchTemplate(`
+let s;
+function setup() {
+  createCanvas(620, 320);
+  s = Waves.createSampler({
+    wave: 'meta sine',
+    mode: 'wild',
+    unpredictability: 0.5,
+    amplitude: height * 0.35,
+    frequency: 0.012
+  });
+}
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  noStroke(); fill('#c8c3f1');
+  beginShape();
+  vertex(0, height);
+  for (let x = 0; x <= width; x += 4) vertex(x, height * 0.6 + s.sample(x, t * 0.1));
+  vertex(width, height); endShape(CLOSE);
+  stroke(0); strokeWeight(1.5); noFill();
+  beginShape();
+  for (let x = 0; x <= width; x += 4) vertex(x, height * 0.6 + s.sample(x, t * 0.1));
+  endShape();
+}`)
+  },
+
+  {
+    id: "color-field",
+    name: "Color Field",
+    category: "color",
+    role: "Two samplers — one for hue, one for brightness — paint a slow color field.",
+    tags: ["hsb", "field"],
+    primitive: PRIMITIVES.sampler,
+    reuse: "ambient backgrounds",
+    notes: "Different seeds keep hue and brightness uncorrelated for richer fields.",
+    state: { hue: null, bri: null, cellW: 0, cellH: 0 },
+    draw(ctx, w, h, t, state) {
+      if (!state.hue) {
+        state.hue = Waves.createSampler({ seed: 0, range: [180, 340] });
+        state.bri = Waves.createSampler({ seed: 7, range: [62, 92] });
+      }
+      const cols = 32;
+      const rows = 14;
+      const cw = w / cols;
+      const ch = h / rows;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const hue = state.hue.sample(c * 0.06 + r * 0.04, t * 0.2);
+          const bri = state.bri.sample(c * 0.04 - r * 0.05, t * 0.25);
+          ctx.fillStyle = `hsl(${hue}, 60%, ${bri}%)`;
+          ctx.fillRect(c * cw, r * ch, cw + 0.5, ch + 0.5);
+        }
+      }
+    },
+    sketch: sketchTemplate(`
+let hueS, briS;
+const COLS = 32, ROWS = 14;
+function setup() {
+  createCanvas(620, 320); noStroke();
+  colorMode(HSB, 360, 100, 100);
+  hueS = Waves.createSampler({ seed: 0, range: [180, 340] });
+  briS = Waves.createSampler({ seed: 7, range: [62, 92] });
+}
+function draw() {
+  const t = millis() / 1000;
+  const cw = width / COLS, ch = height / ROWS;
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    fill(hueS.sample(c * 0.06 + r * 0.04, t * 0.2), 60, briS.sample(c * 0.04 - r * 0.05, t * 0.25));
+    rect(c * cw, r * ch, cw + 0.5, ch + 0.5);
+  }
+}`)
   }
 ];
 
+/* ---------- runnable sketch template ---------- */
+function sketchTemplate(body) {
+  return `// p5.js 2.x + p5.waves v3.2.6
+// CDN:
+// <script src="https://cdn.jsdelivr.net/npm/p5@2.2.2/lib/p5.js"></script>
+// <script src="https://cdn.jsdelivr.net/gh/seb-prjcts-be/p5.waves@v3.2.6/p5.waves.min.js"></script>
+${body.trim()}
+`;
+}
+
+/* ---------- DOM wiring ---------- */
+
 const library = document.querySelector("#library");
 const template = document.querySelector("#cardTemplate");
-const visibleCount = document.querySelector("#visibleCount");
-const activePrimitive = document.querySelector("#activePrimitive");
-const focusLabel = document.querySelector("#focusLabel");
+const visibleCountEl = document.querySelector("#visibleCount");
+const activePrimitiveEl = document.querySelector("#activePrimitive");
+const focusLabelEl = document.querySelector("#focusLabel");
 const searchInput = document.querySelector("#search");
 const filterButtons = [...document.querySelectorAll("[data-filter]")];
 const primitiveButtons = [...document.querySelectorAll("[data-primitive]")];
 const motionToggle = document.querySelector("#motionToggle");
+
 const cardRegistry = [];
 const cardRecords = new WeakMap();
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1079,18 +1837,15 @@ let animationFrame = null;
 
 const viewportObserver = "IntersectionObserver" in window
   ? new IntersectionObserver(entries => {
-      let shouldDrawStaticFrame = false;
+      let drawStatic = false;
       entries.forEach(entry => {
         const record = cardRecords.get(entry.target);
         if (!record) return;
         record.inViewport = entry.isIntersecting;
-        shouldDrawStaticFrame ||= entry.isIntersecting;
+        drawStatic ||= entry.isIntersecting;
       });
-
-      if (shouldDrawStaticFrame && previewsPaused) {
-        drawActivePreviews(performance.now());
-      }
-    }, { rootMargin: "260px 0px" })
+      if (drawStatic && previewsPaused) drawActivePreviews(performance.now());
+    }, { rootMargin: "300px 0px" })
   : null;
 
 function appendTag(row, text, className = "") {
@@ -1103,26 +1858,28 @@ function appendTag(row, text, className = "") {
 function renderLibrary() {
   modules.forEach(module => {
     const node = template.content.firstElementChild.cloneNode(true);
+    node.id = module.id;
     node.dataset.id = module.id;
     node.dataset.category = module.category;
     node.dataset.primitive = module.primitive;
     node.dataset.search = `${module.name} ${module.category} ${module.role} ${module.primitive} ${module.reuse} ${module.notes} ${module.tags.join(" ")}`.toLowerCase();
-    node.querySelector(".category").textContent = module.category;
+    node.querySelector(".category").textContent = module.category.toUpperCase();
     node.querySelector("h2").textContent = module.name;
     node.querySelector(".role").textContent = module.role;
     node.querySelector(".notes").textContent = module.notes;
-    node.querySelector("code").textContent = module.code;
+    node.querySelector("code").textContent = module.sketch;
     const metaRow = node.querySelector(".meta-row");
     appendTag(metaRow, module.primitive, "tag-primitive");
-    appendTag(metaRow, `Use: ${module.reuse}`, "tag-reuse");
+    appendTag(metaRow, `USE · ${module.reuse}`, "tag-reuse");
     module.tags.forEach(tag => appendTag(metaRow, tag));
-    node.querySelector(".copy-button").addEventListener("click", event => {
-      copySnippet(event.currentTarget, node.querySelector("code"), module.code);
+    node.querySelector(".copy-button").addEventListener("click", evt => {
+      copySnippet(evt.currentTarget, node.querySelector("code"), module.sketch);
     });
     const record = {
       node,
       module,
       canvas: node.querySelector("canvas"),
+      state: module.state ? { ...module.state } : {},
       visible: true,
       inViewport: true
     };
@@ -1134,25 +1891,24 @@ function renderLibrary() {
 }
 
 async function copySnippet(button, codeNode, code) {
-  const markCopied = label => {
+  const mark = label => {
     button.textContent = label;
     button.classList.add("is-copied");
     setTimeout(() => {
-      button.textContent = "Copy";
+      button.textContent = "COPY";
       button.classList.remove("is-copied");
     }, 1100);
   };
-
   try {
     await navigator.clipboard.writeText(code);
-    markCopied("Copied");
+    mark("COPIED");
   } catch {
     const selection = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(codeNode);
     selection.removeAllRanges();
     selection.addRange(range);
-    markCopied("Selected");
+    mark("SELECTED");
   }
 }
 
@@ -1173,38 +1929,35 @@ function filterLibrary() {
       visiblePrimitives.add(record.module.primitive);
     }
   });
-
-  visibleCount.textContent = count;
-  activePrimitive.textContent = getPrimitiveSummary(count, visiblePrimitives);
-  focusLabel.textContent = getFocusSummary();
-
+  visibleCountEl.textContent = count;
+  activePrimitiveEl.textContent = primitiveSummary(count, visiblePrimitives);
+  focusLabelEl.textContent = focusSummary();
   if (!count) {
     if (!noResultsNode) {
       noResultsNode = document.createElement("div");
       noResultsNode.className = "no-results";
-      noResultsNode.textContent = "No modules match this filter.";
+      noResultsNode.textContent = "No specimens match this filter.";
       library.appendChild(noResultsNode);
     }
   } else if (noResultsNode) {
     noResultsNode.remove();
     noResultsNode = null;
   }
-
   drawActivePreviews(performance.now());
 }
 
-function getPrimitiveSummary(count, visiblePrimitives) {
+function primitiveSummary(count, visible) {
   if (!count) return "no match";
   if (activePrimitiveFilter !== "all") return activePrimitiveFilter;
-  if (visiblePrimitives.size === 1) return [...visiblePrimitives][0];
-  return `${visiblePrimitives.size} primitives`;
+  if (visible.size === 1) return [...visible][0];
+  return `${visible.size} primitives`;
 }
 
-function getFocusSummary() {
-  const focusParts = [];
-  if (activeFilter !== "all") focusParts.push(activeFilter);
-  if (activePrimitiveFilter !== "all") focusParts.push(activePrimitiveFilter);
-  return focusParts.length ? focusParts.join(" / ") : "micro-decisions";
+function focusSummary() {
+  const parts = [];
+  if (activeFilter !== "all") parts.push(activeFilter);
+  if (activePrimitiveFilter !== "all") parts.push(activePrimitiveFilter);
+  return parts.length ? parts.join(" · ") : "micro-decisions";
 }
 
 function bindControls() {
@@ -1223,14 +1976,12 @@ function bindControls() {
       filterLibrary();
     });
   });
-  motionToggle.addEventListener("click", () => {
-    setPreviewsPaused(!previewsPaused);
-  });
+  motionToggle.addEventListener("click", () => setPreviewsPaused(!previewsPaused));
   updateMotionToggle();
 }
 
 function updateMotionToggle() {
-  motionToggle.textContent = previewsPaused ? "Resume previews" : "Pause previews";
+  motionToggle.textContent = previewsPaused ? "RESUME PREVIEWS" : "PAUSE PREVIEWS";
   motionToggle.setAttribute("aria-pressed", String(previewsPaused));
   motionToggle.classList.toggle("is-paused", previewsPaused);
 }
@@ -1247,11 +1998,11 @@ function setPreviewsPaused(paused) {
 }
 
 function drawActivePreviews(time) {
-  const t = time * 0.00022;
+  const t = time * 0.001;
   cardRegistry.forEach(record => {
     if (!record.visible || !record.inViewport) return;
     const { ctx, w, h } = setupCanvas(record.canvas);
-    record.module.draw(ctx, w, h, t);
+    record.module.draw(ctx, w, h, t, record.state);
   });
 }
 
@@ -1267,7 +2018,19 @@ function animate(time) {
   requestPreviewFrame();
 }
 
-renderLibrary();
-bindControls();
-filterLibrary();
-requestPreviewFrame();
+/* ---------- boot ---------- */
+
+function boot() {
+  if (typeof Waves === "undefined") {
+    // p5.waves not loaded yet — wait
+    setTimeout(boot, 30);
+    return;
+  }
+  bootHero();
+  renderLibrary();
+  bindControls();
+  filterLibrary();
+  requestPreviewFrame();
+}
+
+boot();
