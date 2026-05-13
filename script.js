@@ -164,16 +164,17 @@ function modeMeter(ctx, w, h, t, s) {
 }
 
 function modeGrid(ctx, w, h, t, s) {
-  // Wave-driven dot grid
+  // Wave-driven dot grid — radius leaves visible whitespace
   const cols = 14;
   const rows = 6;
   const cw = w / cols;
   const ch = h / rows;
+  const maxR = Math.min(cw, ch) * 0.32;
   ctx.fillStyle = palette.ink;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const v = (s.sample(c * 0.4 + r * 0.6, t) + 1) * 0.5;
-      const rad = Math.max(1, v * Math.min(cw, ch) * 0.45);
+      const rad = Math.max(1.5, v * maxR);
       ctx.beginPath();
       ctx.arc(c * cw + cw / 2, r * ch + ch / 2, rad, 0, Math.PI * 2);
       ctx.fill();
@@ -1269,10 +1270,15 @@ function draw() {
         next.render(ctx, w, h, t, s);
       }
 
-      // Header strip: mode label + transition state
-      label(ctx, `MODE · ${next.label}`, 14, 18, palette.ink, 11);
+      // Header strip — held: just the mode; shifting: prev → next + mix bar
       if (s.shifting) {
-        label(ctx, `↗ ${SWITCHER_MODES[(state.nextMode) % SWITCHER_MODES.length].label}`, 14, 36, palette.peach, 11);
+        label(ctx, `${prev.label} ↗ ${next.label}`, 14, 18, palette.peach, 11);
+        ctx.fillStyle = palette.line;
+        ctx.fillRect(14, 28, 100, 3);
+        ctx.fillStyle = palette.peach;
+        ctx.fillRect(14, 28, 100 * s.mix, 3);
+      } else {
+        label(ctx, `MODE · ${next.label}`, 14, 18, palette.ink, 11);
       }
     },
     sketch: sketchTemplate(`
