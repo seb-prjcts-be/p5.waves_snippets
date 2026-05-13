@@ -1065,31 +1065,71 @@ const visibleCount = document.querySelector("#visibleCount");
 const activePrimitive = document.querySelector("#activePrimitive");
 const focusLabel = document.querySelector("#focusLabel");
 const searchInput = document.querySelector("#search");
-const filterButtons = [...document.querySelectorAll(".filter")];
+const filterButtons = [...document.querySelectorAll("[data-filter]")];
+const primitiveButtons = [...document.querySelectorAll("[data-primitive]")];
+const motionToggle = document.querySelector("#motionToggle");
+const cardRegistry = [];
+const cardRecords = new WeakMap();
+const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 let activeFilter = "all";
+let activePrimitiveFilter = "all";
+let previewsPaused = prefersReducedMotion;
 let noResultsNode = null;
+let animationFrame = null;
+
+const viewportObserver = "IntersectionObserver" in window
+  ? new IntersectionObserver(entries => {
+      let shouldDrawStaticFrame = false;
+      entries.forEach(entry => {
+        const record = cardRecords.get(entry.target);
+        if (!record) return;
+        record.inViewport = entry.isIntersecting;
+        shouldDrawStaticFrame ||= entry.isIntersecting;
+      });
+
+      if (shouldDrawStaticFrame && previewsPaused) {
+        drawActivePreviews(performance.now());
+      }
+    }, { rootMargin: "260px 0px" })
+  : null;
+
+function appendTag(row, text, className = "") {
+  const tag = document.createElement("span");
+  tag.className = ["tag", className].filter(Boolean).join(" ");
+  tag.textContent = text;
+  row.appendChild(tag);
+}
 
 function renderLibrary() {
   modules.forEach(module => {
     const node = template.content.firstElementChild.cloneNode(true);
     node.dataset.id = module.id;
     node.dataset.category = module.category;
+    node.dataset.primitive = module.primitive;
     node.dataset.search = `${module.name} ${module.category} ${module.role} ${module.primitive} ${module.reuse} ${module.notes} ${module.tags.join(" ")}`.toLowerCase();
     node.querySelector(".category").textContent = module.category;
     node.querySelector("h2").textContent = module.name;
     node.querySelector(".role").textContent = module.role;
     node.querySelector(".notes").textContent = module.notes;
     node.querySelector("code").textContent = module.code;
-    const metaTags = [
-      `<span class="tag tag-primitive">${module.primitive}</span>`,
-      `<span class="tag tag-reuse">Use: ${module.reuse}</span>`,
-      ...module.tags.map(tag => `<span class="tag">${tag}</span>`)
-    ];
-    node.querySelector(".meta-row").innerHTML = metaTags.join("");
+    const metaRow = node.querySelector(".meta-row");
+    appendTag(metaRow, module.primitive, "tag-primitive");
+    appendTag(metaRow, `Use: ${module.reuse}`, "tag-reuse");
+    module.tags.forEach(tag => appendTag(metaRow, tag));
     node.querySelector(".copy-button").addEventListener("click", event => {
       copySnippet(event.currentTarget, node.querySelector("code"), module.code);
     });
+    const record = {
+      node,
+      module,
+      canvas: node.querySelector("canvas"),
+      visible: true,
+      inViewport: true
+    };
+    cardRegistry.push(record);
+    cardRecords.set(node, record);
     library.appendChild(node);
+    viewportObserver?.observe(node);
   });
 }
 
@@ -1119,21 +1159,24 @@ async function copySnippet(button, codeNode, code) {
 function filterLibrary() {
   const query = searchInput.value.trim().toLowerCase();
   let count = 0;
-  let firstVisible = null;
-  document.querySelectorAll(".module-card").forEach(card => {
-    const categoryMatch = activeFilter === "all" || card.dataset.category === activeFilter;
+  const visiblePrimitives = new Set();
+  cardRegistry.forEach(record => {
+    const card = record.node;
+    const categoryMatch = activeFilter === "all" || record.module.category === activeFilter;
+    const primitiveMatch = activePrimitiveFilter === "all" || record.module.primitive === activePrimitiveFilter;
     const queryMatch = !query || card.dataset.search.includes(query);
-    const visible = categoryMatch && queryMatch;
+    const visible = categoryMatch && primitiveMatch && queryMatch;
+    record.visible = visible;
     card.classList.toggle("is-hidden", !visible);
     if (visible) {
       count += 1;
-      firstVisible ||= modules.find(module => module.id === card.dataset.id);
+      visiblePrimitives.add(record.module.primitive);
     }
   });
 
   visibleCount.textContent = count;
-  activePrimitive.textContent = firstVisible ? firstVisible.primitive : "no match";
-  focusLabel.textContent = activeFilter === "all" ? "micro-decisions" : activeFilter;
+  activePrimitive.textContent = getPrimitiveSummary(count, visiblePrimitives);
+  focusLabel.textContent = getFocusSummary();
 
   if (!count) {
     if (!noResultsNode) {
@@ -1146,6 +1189,22 @@ function filterLibrary() {
     noResultsNode.remove();
     noResultsNode = null;
   }
+
+  drawActivePreviews(performance.now());
+}
+
+function getPrimitiveSummary(count, visiblePrimitives) {
+  if (!count) return "no match";
+  if (activePrimitiveFilter !== "all") return activePrimitiveFilter;
+  if (visiblePrimitives.size === 1) return [...visiblePrimitives][0];
+  return `${visiblePrimitives.size} primitives`;
+}
+
+function getFocusSummary() {
+  const focusParts = [];
+  if (activeFilter !== "all") focusParts.push(activeFilter);
+  if (activePrimitiveFilter !== "all") focusParts.push(activePrimitiveFilter);
+  return focusParts.length ? focusParts.join(" / ") : "micro-decisions";
 }
 
 function bindControls() {
@@ -1157,20 +1216,58 @@ function bindControls() {
       filterLibrary();
     });
   });
+  primitiveButtons.forEach(button => {
+    button.addEventListener("click", () => {
+      activePrimitiveFilter = button.dataset.primitive;
+      primitiveButtons.forEach(item => item.classList.toggle("is-active", item === button));
+      filterLibrary();
+    });
+  });
+  motionToggle.addEventListener("click", () => {
+    setPreviewsPaused(!previewsPaused);
+  });
+  updateMotionToggle();
+}
+
+function updateMotionToggle() {
+  motionToggle.textContent = previewsPaused ? "Resume previews" : "Pause previews";
+  motionToggle.setAttribute("aria-pressed", String(previewsPaused));
+  motionToggle.classList.toggle("is-paused", previewsPaused);
+}
+
+function setPreviewsPaused(paused) {
+  previewsPaused = paused;
+  updateMotionToggle();
+  if (previewsPaused && animationFrame !== null) {
+    cancelAnimationFrame(animationFrame);
+    animationFrame = null;
+  }
+  drawActivePreviews(performance.now());
+  requestPreviewFrame();
+}
+
+function drawActivePreviews(time) {
+  const t = time * 0.00022;
+  cardRegistry.forEach(record => {
+    if (!record.visible || !record.inViewport) return;
+    const { ctx, w, h } = setupCanvas(record.canvas);
+    record.module.draw(ctx, w, h, t);
+  });
+}
+
+function requestPreviewFrame() {
+  if (!previewsPaused && animationFrame === null) {
+    animationFrame = requestAnimationFrame(animate);
+  }
 }
 
 function animate(time) {
-  const t = time * 0.00022;
-  document.querySelectorAll(".module-card:not(.is-hidden)").forEach(card => {
-    const module = modules.find(item => item.id === card.dataset.id);
-    const canvas = card.querySelector("canvas");
-    const { ctx, w, h } = setupCanvas(canvas);
-    module.draw(ctx, w, h, t);
-  });
-  requestAnimationFrame(animate);
+  animationFrame = null;
+  drawActivePreviews(time);
+  requestPreviewFrame();
 }
 
 renderLibrary();
 bindControls();
 filterLibrary();
-requestAnimationFrame(animate);
+requestPreviewFrame();

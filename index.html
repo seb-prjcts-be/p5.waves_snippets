@@ -27,23 +27,36 @@
           <label for="search">Search modules</label>
           <input id="search" type="search" placeholder="Try grid, type, status, texture">
         </div>
-        <div class="filter-wrap" aria-label="Category filters">
-          <button class="filter is-active" type="button" data-filter="all">All</button>
-          <button class="filter" type="button" data-filter="motion">Motion</button>
-          <button class="filter" type="button" data-filter="type">Type</button>
-          <button class="filter" type="button" data-filter="grid">Grid</button>
-          <button class="filter" type="button" data-filter="color">Color</button>
-          <button class="filter" type="button" data-filter="texture">Texture</button>
-          <button class="filter" type="button" data-filter="interface">Interface</button>
-          <button class="filter" type="button" data-filter="state">State</button>
-          <button class="filter" type="button" data-filter="layout">Layout</button>
+        <div class="control-group">
+          <span class="control-label">Category</span>
+          <div class="filter-wrap" aria-label="Category filters">
+            <button class="filter is-active" type="button" data-filter="all">All</button>
+            <button class="filter" type="button" data-filter="motion">Motion</button>
+            <button class="filter" type="button" data-filter="type">Type</button>
+            <button class="filter" type="button" data-filter="grid">Grid</button>
+            <button class="filter" type="button" data-filter="color">Color</button>
+            <button class="filter" type="button" data-filter="texture">Texture</button>
+            <button class="filter" type="button" data-filter="interface">Interface</button>
+            <button class="filter" type="button" data-filter="state">State</button>
+            <button class="filter" type="button" data-filter="layout">Layout</button>
+          </div>
         </div>
+        <div class="control-group">
+          <span class="control-label">Primitive</span>
+          <div class="filter-wrap primitive-wrap" aria-label="Primitive filters">
+            <button class="filter is-active" type="button" data-primitive="all">All primitives</button>
+            <button class="filter" type="button" data-primitive="Waves.wave()">Waves.wave()</button>
+            <button class="filter" type="button" data-primitive="sampler.sample()">sampler.sample()</button>
+            <button class="filter" type="button" data-primitive="sampler.mix">sampler.mix</button>
+          </div>
+        </div>
+        <button id="motionToggle" class="motion-toggle" type="button" aria-pressed="false">Pause previews</button>
       </section>
 
       <section class="library-summary" aria-label="Current wave state">
         <div>
-          <span class="summary-label">Active primitive</span>
-          <strong id="activePrimitive">Waves.wave()</strong>
+          <span class="summary-label">Primitive view</span>
+          <strong id="activePrimitive">3 primitives</strong>
         </div>
         <div>
           <span class="summary-label">Visible modules</span>

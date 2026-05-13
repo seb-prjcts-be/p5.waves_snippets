@@ -112,7 +112,7 @@ h1 {
   top: 0;
   z-index: 5;
   display: grid;
-  grid-template-columns: minmax(220px, 340px) 1fr;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1.15fr) minmax(240px, 0.75fr) auto;
   gap: 16px;
   align-items: end;
   padding: 16px 0;
@@ -122,7 +122,12 @@ h1 {
   border-bottom: 1px solid var(--line);
 }
 
+.control-group {
+  min-width: 0;
+}
+
 .search-wrap label,
+.control-label,
 .summary-label {
   display: block;
   margin-bottom: 6px;
@@ -147,11 +152,16 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  justify-content: flex-end;
+  justify-content: flex-start;
+}
+
+.primitive-wrap {
+  gap: 6px;
 }
 
 .filter,
-.copy-button {
+.copy-button,
+.motion-toggle {
   min-height: 36px;
   border: 1px solid var(--ink);
   border-radius: 999px;
@@ -167,13 +177,25 @@ h1 {
 }
 
 .filter:hover,
-.copy-button:hover {
+.copy-button:hover,
+.motion-toggle:hover {
   transform: translateY(-1px);
 }
 
 .filter.is-active {
   background: var(--ink);
   color: var(--paper);
+}
+
+.motion-toggle {
+  align-self: end;
+  min-width: 136px;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
+.motion-toggle.is-paused {
+  background: var(--yellow);
 }
 
 .library-summary {
@@ -329,6 +351,14 @@ code {
 }
 
 @media (max-width: 1180px) {
+  .control-panel {
+    grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  }
+
+  .motion-toggle {
+    justify-self: start;
+  }
+
   .library-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -362,6 +392,10 @@ code {
 
   .filter-wrap {
     justify-content: flex-start;
+  }
+
+  .motion-toggle {
+    width: 100%;
   }
 
   .module-card {
