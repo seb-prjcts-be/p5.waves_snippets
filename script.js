@@ -110,6 +110,84 @@ function bootHero() {
   requestAnimationFrame(frame);
 }
 
+/* ---------- function-switcher render modes ----------
+ * Four totally different graphic jobs — wave curve, typography, meter,
+ * dot grid. The shift is the trigger; each completed shift advances to
+ * the next mode. The wave name doesn't pick the mode, the schedule does.
+ */
+
+function modeCurve(ctx, w, h, t, s) {
+  // Draws the live active wave from the sampler
+  ctx.strokeStyle = palette.ink;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let x = 0; x <= w; x += 4) {
+    const v = s.sample(x * 0.02, t);
+    const y = h * 0.5 + v * h * 0.32;
+    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
+function modeType(ctx, w, h, t, s) {
+  // Typographic display of the current wave name
+  const fontSize = Math.min(54, w * 0.1);
+  ctx.fillStyle = palette.ink;
+  ctx.font = `600 ${fontSize}px Oswald, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(s.waveName.toUpperCase(), w * 0.5, h * 0.5);
+  ctx.textAlign = "left";
+  ctx.fillStyle = palette.peach;
+  ctx.fillRect(w * 0.2, h * 0.72, w * 0.6, 4);
+}
+
+function modeMeter(ctx, w, h, t, s) {
+  // Radial reading driven by the wave value
+  const cx = w * 0.5;
+  const cy = h * 0.5;
+  const r = Math.min(w, h) * 0.3;
+  const v = (s.sample(0, t) + 1) * 0.5;
+  ctx.lineWidth = 16;
+  ctx.strokeStyle = palette.line;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = palette.mint;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + v * Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = palette.ink;
+  ctx.font = "600 30px Oswald, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(`${Math.round(v * 100)}%`, cx, cy);
+  ctx.textAlign = "left";
+}
+
+function modeGrid(ctx, w, h, t, s) {
+  // Wave-driven dot grid
+  const cols = 14;
+  const rows = 6;
+  const cw = w / cols;
+  const ch = h / rows;
+  ctx.fillStyle = palette.ink;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const v = (s.sample(c * 0.4 + r * 0.6, t) + 1) * 0.5;
+      const rad = Math.max(1, v * Math.min(cw, ch) * 0.45);
+      ctx.beginPath();
+      ctx.arc(c * cw + cw / 2, r * ch + ch / 2, rad, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+const SWITCHER_MODES = [
+  { label: "CURVE",  render: modeCurve },
+  { label: "TYPE",   render: modeType },
+  { label: "METER",  render: modeMeter },
+  { label: "GRID",   render: modeGrid }
+];
+
 /* ---------- module definitions ----------
  * Each module declares:
  *  - id, name, category, role, tags, primitive, reuse, notes
@@ -1145,6 +1223,140 @@ function draw() {
   arc(cx, cy, r * 2, r * 2, -PI / 2, -PI / 2 + (s.mix || 0) * TWO_PI);
   noStroke(); fill(0); textAlign(CENTER, CENTER); textSize(30);
   text(round((s.mix || 0) * 100) + '%', cx, cy - 6);
+}`)
+  },
+
+  {
+    id: "function-switcher",
+    name: "Function Switcher",
+    category: "state",
+    role: "Each completed shift advances a mode index — the schedule dispatches *which graphic job* runs.",
+    tags: ["sampler", "shift", "dispatch", "switcher"],
+    primitive: PRIMITIVES.sampler,
+    reuse: "behaviour swaps",
+    notes: "The four modes (curve, type, meter, grid) have nothing in common visually. The shift is the only trigger; sampler.shifting + mix crossfades the handover.",
+    state: { sampler: null, prevMode: 0, nextMode: 1, wasShifting: false },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.panel);
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({
+          shift: true,
+          shiftInterval: 3,
+          shiftDuration: 1.2,
+          group: "gentle"
+        });
+      }
+      const s = state.sampler;
+      s.sample(0, t);
+
+      // Detect rising edge of shifting: a new shift just started
+      if (!state.wasShifting && s.shifting) {
+        state.prevMode = state.nextMode;
+        state.nextMode = (state.nextMode + 1) % SWITCHER_MODES.length;
+      }
+      state.wasShifting = s.shifting;
+
+      const next = SWITCHER_MODES[state.nextMode];
+      const prev = SWITCHER_MODES[state.prevMode];
+
+      if (s.shifting) {
+        ctx.globalAlpha = 1 - s.mix;
+        prev.render(ctx, w, h, t, s);
+        ctx.globalAlpha = s.mix;
+        next.render(ctx, w, h, t, s);
+        ctx.globalAlpha = 1;
+      } else {
+        next.render(ctx, w, h, t, s);
+      }
+
+      // Header strip: mode label + transition state
+      label(ctx, `MODE · ${next.label}`, 14, 18, palette.ink, 11);
+      if (s.shifting) {
+        label(ctx, `↗ ${SWITCHER_MODES[(state.nextMode) % SWITCHER_MODES.length].label}`, 14, 36, palette.peach, 11);
+      }
+    },
+    sketch: sketchTemplate(`
+// Function Switcher — dispatch on shift, not on wave name.
+// Each shift end advances the mode index.
+let s;
+let prevMode = 0, nextMode = 1, wasShifting = false;
+const modes = [
+  { label: 'CURVE',  render: drawCurve },
+  { label: 'TYPE',   render: drawType  },
+  { label: 'METER',  render: drawMeter },
+  { label: 'GRID',   render: drawGrid  }
+];
+
+function setup() {
+  createCanvas(620, 320);
+  textFont('Oswald');
+  s = Waves.createSampler({ shift: true, shiftInterval: 3, shiftDuration: 1.2, group: 'gentle' });
+}
+
+function draw() {
+  background(255);
+  const t = millis() / 1000;
+  s.sample(0, t);
+
+  if (!wasShifting && s.shifting) {
+    prevMode = nextMode;
+    nextMode = (nextMode + 1) % modes.length;
+  }
+  wasShifting = s.shifting;
+
+  if (s.shifting) {
+    push(); drawingContext.globalAlpha = 1 - s.mix;
+    modes[prevMode].render(t, s);
+    drawingContext.globalAlpha = s.mix;
+    modes[nextMode].render(t, s);
+    pop();
+  } else {
+    modes[nextMode].render(t, s);
+  }
+
+  fill(0); noStroke(); textSize(11);
+  text('MODE · ' + modes[nextMode].label, 14, 22);
+}
+
+function drawCurve(t, s) {
+  noFill(); stroke(0); strokeWeight(2);
+  beginShape();
+  for (let x = 0; x <= width; x += 4) {
+    vertex(x, height / 2 + s.sample(x * 0.02, t) * height * 0.32);
+  }
+  endShape();
+}
+
+function drawType(t, s) {
+  fill(0); noStroke();
+  textSize(54); textAlign(CENTER, CENTER);
+  text(s.waveName.toUpperCase(), width / 2, height / 2);
+  textAlign(LEFT, BASELINE);
+  fill(246, 167, 150);
+  rect(width * 0.2, height * 0.72, width * 0.6, 4);
+}
+
+function drawMeter(t, s) {
+  const cx = width / 2, cy = height / 2;
+  const r = min(width, height) * 0.3;
+  const v = (s.sample(0, t) + 1) * 0.5;
+  noFill(); strokeWeight(16);
+  stroke(220); circle(cx, cy, r * 2);
+  stroke('#c7e89c');
+  arc(cx, cy, r * 2, r * 2, -PI / 2, -PI / 2 + v * TWO_PI);
+  noStroke(); fill(0);
+  textSize(30); textAlign(CENTER, CENTER);
+  text(round(v * 100) + '%', cx, cy);
+}
+
+function drawGrid(t, s) {
+  noStroke(); fill(0);
+  const cols = 14, rows = 6;
+  const cw = width / cols, ch = height / rows;
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const v = (s.sample(c * 0.4 + r * 0.6, t) + 1) * 0.5;
+    circle(c * cw + cw / 2, r * ch + ch / 2, max(1, v * min(cw, ch) * 0.9));
+  }
 }`)
   },
 
