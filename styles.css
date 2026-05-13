@@ -288,6 +288,20 @@ canvas {
   font-weight: 720;
 }
 
+.tag-primitive {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.68rem;
+}
+
+.tag-reuse {
+  border-color: color-mix(in srgb, var(--teal) 48%, var(--line));
+  background: color-mix(in srgb, var(--teal) 10%, #ffffff);
+  color: #245452;
+}
+
 pre {
   overflow: auto;
   min-height: 132px;

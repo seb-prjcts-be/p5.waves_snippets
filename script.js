@@ -95,6 +95,7 @@ const modules = [
     role: "A wave value becomes a precise horizontal offset for a small annotation.",
     tags: ["motion", "label", "position"],
     primitive: "Waves.wave()",
+    reuse: "callouts and captions",
     notes: "Useful for captions, callouts, and editorial labels that should stay legible while feeling active.",
     code: `const v = Waves.wave(t, { wave: "sine", speed: 0.7 });
 const x = baseX + v * 36;
@@ -131,6 +132,7 @@ line(baseX, y + 16, x, y + 16);`,
     role: "The wave opens and closes letter spacing without changing the words.",
     tags: ["type", "spacing", "headline"],
     primitive: "Waves.wave()",
+    reuse: "section titles",
     notes: "A compact way to animate hierarchy in titles, section markers, and display typography.",
     code: `const v = Waves.wave(t, { wave: "bounce", speed: 0.45 });
 const tracking = map(v, -1, 1, 0, 14);
@@ -163,6 +165,7 @@ drawTrackedText("SIGNAL", x, y, tracking);`,
     role: "Sampled row and column values decide which cells are active.",
     tags: ["grid", "threshold", "pattern"],
     primitive: "sampler.sample()",
+    reuse: "matrix backgrounds",
     notes: "Good for backgrounds, data placeholders, matrix states, and printable block patterns.",
     code: `for (let y = 0; y < rows; y++) {
   for (let x = 0; x < cols; x++) {
@@ -195,6 +198,7 @@ drawTrackedText("SIGNAL", x, y, tracking);`,
     role: "A normalized wave value chooses intensity across a compact palette.",
     tags: ["color", "swatch", "contrast"],
     primitive: "Waves.wave()",
+    reuse: "emphasis swatches",
     notes: "Use the same value to tune fills, borders, or emphasis without making random color choices.",
     code: `const v = (Waves.wave(t, { wave: "sine" }) + 1) / 2;
 const active = floor(v * palette.length);
@@ -228,6 +232,7 @@ rect(x, y, w, h);`,
     role: "Wave amplitude becomes spacing and bend in a reusable hatch texture.",
     tags: ["texture", "print", "hatch"],
     primitive: "Waves.wave()",
+    reuse: "print textures",
     notes: "A small texture module that can become a mask, poster field, or exportable tile.",
     code: `const pressure = Waves.wave(t, { wave: "triangle" });
 const gap = map(pressure, -1, 1, 18, 7);
@@ -258,6 +263,7 @@ for (let x = -w; x < w * 2; x += gap) {
     role: "A wave maps to progress so a waiting state has a readable rhythm.",
     tags: ["interface", "loading", "progress"],
     primitive: "Waves.wave()",
+    reuse: "waiting states",
     notes: "The value never needs to be real progress; it can simply communicate that the system is alive.",
     code: `const v = (Waves.wave(t, { wave: "ramp" }) + 1) / 2;
 
@@ -285,6 +291,7 @@ rect(trackX, trackY, trackW * v, 8);`,
     role: "The sampler exposes active wave, target wave, and mix as a compact state label.",
     tags: ["state", "mix", "label"],
     primitive: "sampler.mix",
+    reuse: "tool readouts",
     notes: "A state module for tools where users need to know which behavior is active and where it is heading.",
     code: `text(sampler.waveName, x, y);
 text(sampler.targetName, x, y + 18);
@@ -316,6 +323,7 @@ rect(x, y + 30, sampler.mix * 90, 4);`,
     role: "One value opens spacing between columns while keeping the layout stable.",
     tags: ["layout", "spacing", "columns"],
     primitive: "Waves.wave()",
+    reuse: "editorial grids",
     notes: "A layout rhythm for editorial blocks, dashboards, or any grid that needs subtle breathing room.",
     code: `const v = (Waves.wave(t, { wave: "sine" }) + 1) / 2;
 const gap = lerp(8, 34, v);
@@ -346,6 +354,7 @@ drawColumns({ gap });`,
     role: "A ramp wave moves a divider through a section and leaves a clear before/after read.",
     tags: ["motion", "divider", "scan"],
     primitive: "Waves.wave()",
+    reuse: "inspection dividers",
     notes: "Use it as a section marker, comparison slider, inspection line, or live archive scanner.",
     code: `const scan = (Waves.wave(t, { wave: "ramp" }) + 1) / 2;
 const x = scan * width;
@@ -379,6 +388,7 @@ rect(0, 0, x, height);`,
     role: "A pulse wave gives permission for one word to appear while others stay quiet.",
     tags: ["type", "gate", "caption"],
     primitive: "Waves.wave()",
+    reuse: "alerts and labels",
     notes: "A direct module for alerts, poetry fragments, changing labels, or interface microcopy.",
     code: `const gate = Waves.wave(t, { wave: "pulse", speed: 0.5 });
 const word = gate > 0 ? "OPEN" : "HOLD";
@@ -406,6 +416,7 @@ text(word, x, y);`,
     role: "Offset wave samples turn rows on one after another.",
     tags: ["grid", "rows", "sequence"],
     primitive: "sampler.sample()",
+    reuse: "tables and menus",
     notes: "A useful behavior for menus, tables, scoreboards, and any repeated UI that needs a sweep.",
     code: `rows.forEach((row, i) => {
   const v = sampler.sample(i, t);
@@ -435,6 +446,7 @@ text(word, x, y);`,
     role: "A wave sets dot radius across a field for a repeatable density texture.",
     tags: ["texture", "density", "pattern"],
     primitive: "sampler.sample()",
+    reuse: "density masks",
     notes: "Works as a print texture, mask layer, thumbnail treatment, or background pattern.",
     code: `for (let i = 0; i < dots.length; i++) {
   const v = sampler.sample(i, t);
@@ -464,6 +476,7 @@ text(word, x, y);`,
     role: "A wave value moves one marker along a measured path while the scale stays fixed.",
     tags: ["motion", "marker", "measure"],
     primitive: "Waves.wave()",
+    reuse: "meters and timelines",
     notes: "Useful for meters, timelines, and annotation systems where the moving part needs a stable reference.",
     code: `const v = Waves.wave(t, { wave: "sine", speed: 0.8 });
 const x = map(v, -1, 1, left, right);
@@ -509,6 +522,7 @@ circle(x, y, 16);`,
     role: "A normalized wave chooses one word from a controlled vocabulary.",
     tags: ["type", "word", "selection"],
     primitive: "Waves.wave()",
+    reuse: "mode labels",
     notes: "A compact label module for changing modes, generated captions, or poetic interface states.",
     code: `const words = ["soft", "sharp", "open", "dense"];
 const v = (Waves.wave(t, { wave: "triangle" }) + 1) / 2;
@@ -542,6 +556,7 @@ text(words[index], x, y);`,
     role: "Offset samples brighten columns so a static grid gains a directional sweep.",
     tags: ["grid", "columns", "sequence"],
     primitive: "sampler.sample()",
+    reuse: "calendar columns",
     notes: "A reusable behavior for calendars, schedules, rhythm charts, and any column-based interface.",
     code: `for (let x = 0; x < cols; x++) {
   const v = sampler.sample(x, t);
@@ -573,6 +588,7 @@ text(words[index], x, y);`,
     role: "One wave value fades a color layer in and out without changing the composition.",
     tags: ["color", "opacity", "layer"],
     primitive: "Waves.wave()",
+    reuse: "layer emphasis",
     notes: "Useful when emphasis should breathe over a fixed image, map, diagram, or editorial block.",
     code: `const alpha = map(Waves.wave(t), -1, 1, 0.15, 0.85);
 
@@ -602,6 +618,7 @@ rect(x, y, w, h);`,
     role: "A pulse wave gates a badge between quiet and active states.",
     tags: ["interface", "badge", "status"],
     primitive: "Waves.wave()",
+    reuse: "sync indicators",
     notes: "Use it for small alerts, sync indicators, recording states, or any status that should not look static.",
     code: `const active = Waves.wave(t, { wave: "pulse" }) > 0;
 
@@ -631,6 +648,7 @@ badge.label(active ? "live" : "idle");`,
     role: "A mix value shows the visible progress between one wave voice and another.",
     tags: ["state", "transition", "mix"],
     primitive: "sampler.mix",
+    reuse: "transition controls",
     notes: "A clear readout for tools that shift between behaviors and need to expose the change.",
     code: `const mix = sampler.mix;
 const value = lerp(sineValue, triangleValue, mix);
@@ -668,6 +686,7 @@ drawSignal(value);`,
     role: "A wave changes divider weight so two content zones keep a living boundary.",
     tags: ["layout", "divider", "section"],
     primitive: "Waves.wave()",
+    reuse: "section rules",
     notes: "Works as a section separator, running header rule, or editorial rhythm inside a larger layout.",
     code: `const v = (Waves.wave(t, { wave: "bounce" }) + 1) / 2;
 const weight = lerp(2, 18, v);
@@ -698,6 +717,7 @@ line(x, y, x + width, y, weight);`,
     role: "A repeated wave sample sets the direction of small marks inside a tile.",
     tags: ["texture", "tile", "export"],
     primitive: "sampler.sample()",
+    reuse: "repeat pattern tiles",
     notes: "A copyable source for repeat textures, SVG exports, brushes, and background pattern systems.",
     code: `for (let i = 0; i < marks.length; i++) {
   const v = sampler.sample(i, t);
@@ -739,6 +759,7 @@ line(x, y, x + width, y, weight);`,
     role: "Offset wave samples place trailing marks behind a moving pointer.",
     tags: ["motion", "cursor", "trail"],
     primitive: "sampler.sample()",
+    reuse: "guided pointers",
     notes: "A small path-following behavior for cursors, guided tours, drawing tools, and annotation trails.",
     code: `for (let i = 0; i < echoes; i++) {
   const v = sampler.sample(i, t);
@@ -786,6 +807,7 @@ line(x, y, x + width, y, weight);`,
     role: "A wave value raises and lowers contrast while keeping the palette fixed.",
     tags: ["color", "contrast", "meter"],
     primitive: "Waves.wave()",
+    reuse: "contrast previews",
     notes: "Useful for previewing emphasis states, accessibility checks, and controlled color intensity changes.",
     code: `const v = (Waves.wave(t, { wave: "sine" }) + 1) / 2;
 const ink = lerpColor(midInk, deepInk, v);
@@ -815,6 +837,7 @@ drawContrastSample({ ink, field });`,
     role: "A hover-ready control uses a wave as a focus ring and fill pulse.",
     tags: ["interface", "button", "hover"],
     primitive: "Waves.wave()",
+    reuse: "active controls",
     notes: "A reusable button state for tools where active controls should feel responsive without jumping layout.",
     code: `const hover = button.isHovered;
 const v = hover ? Waves.wave(t, { wave: "bounce" }) : -1;
@@ -852,6 +875,7 @@ drawButton({ pulse });`,
     role: "A normalized wave chooses the active mode in a compact segmented control.",
     tags: ["state", "mode", "control"],
     primitive: "Waves.wave()",
+    reuse: "tool mode switches",
     notes: "A readable state module for switching between tools, wave voices, drawing modes, or preview layers.",
     code: `const modes = ["draw", "scan", "sort"];
 const v = (Waves.wave(t, { wave: "triangle" }) + 1) / 2;
@@ -892,6 +916,7 @@ setMode(modes[active]);`,
     role: "A wave opens a clipping window over a repeating stripe layer.",
     tags: ["texture", "mask", "reveal"],
     primitive: "Waves.wave()",
+    reuse: "image reveals",
     notes: "A practical mask behavior for thumbnails, posters, reveal transitions, and exportable image treatments.",
     code: `const v = (Waves.wave(t, { wave: "sine" }) + 1) / 2;
 const radius = lerp(28, 120, v);
@@ -932,6 +957,7 @@ drawStripeTexture();`,
     role: "A wave moves an edge rule inward and outward to reshape a stable frame.",
     tags: ["layout", "border", "frame"],
     primitive: "Waves.wave()",
+    reuse: "selection frames",
     notes: "Use it for section markers, active panels, selection frames, and layout systems with a visible pulse.",
     code: `const v = (Waves.wave(t, { wave: "sine" }) + 1) / 2;
 const inset = lerp(8, 36, v);
@@ -960,6 +986,7 @@ rect(inset, inset, width - inset * 2, height - inset * 2);`,
     role: "Offset wave samples lift each letter into a controlled baseline bend.",
     tags: ["type", "baseline", "caption"],
     primitive: "sampler.sample()",
+    reuse: "caption baselines",
     notes: "A small typographic behavior for captions, logos, labels, or headings that need motion without changing copy.",
     code: `letters.forEach((letter, i) => {
   const lift = sampler.sample(i, t) * 18;
@@ -997,6 +1024,7 @@ rect(inset, inset, width - inset * 2, height - inset * 2);`,
     role: "A threshold wave decides which cells are allowed to become visible.",
     tags: ["grid", "permission", "threshold"],
     primitive: "Waves.wave()",
+    reuse: "state grids",
     notes: "This is a practical rule for dashboards, matrix editors, active seats, or any repeated state grid.",
     code: `const permission = (Waves.wave(t, { wave: "sine" }) + 1) / 2;
 
@@ -1046,13 +1074,18 @@ function renderLibrary() {
     const node = template.content.firstElementChild.cloneNode(true);
     node.dataset.id = module.id;
     node.dataset.category = module.category;
-    node.dataset.search = `${module.name} ${module.category} ${module.role} ${module.notes} ${module.tags.join(" ")}`.toLowerCase();
+    node.dataset.search = `${module.name} ${module.category} ${module.role} ${module.primitive} ${module.reuse} ${module.notes} ${module.tags.join(" ")}`.toLowerCase();
     node.querySelector(".category").textContent = module.category;
     node.querySelector("h2").textContent = module.name;
     node.querySelector(".role").textContent = module.role;
     node.querySelector(".notes").textContent = module.notes;
     node.querySelector("code").textContent = module.code;
-    node.querySelector(".meta-row").innerHTML = module.tags.map(tag => `<span class="tag">${tag}</span>`).join("");
+    const metaTags = [
+      `<span class="tag tag-primitive">${module.primitive}</span>`,
+      `<span class="tag tag-reuse">Use: ${module.reuse}</span>`,
+      ...module.tags.map(tag => `<span class="tag">${tag}</span>`)
+    ];
+    node.querySelector(".meta-row").innerHTML = metaTags.join("");
     node.querySelector(".copy-button").addEventListener("click", event => {
       copySnippet(event.currentTarget, node.querySelector("code"), module.code);
     });
