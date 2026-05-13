@@ -1,0 +1,6 @@
+# Claude Code session state (worktrees, local settings)
+.claude/
+
+# OS metadata
+Thumbs.db
+.DS_Store
