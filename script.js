@@ -1,4 +1,4 @@
-/* p5.waves visual vocabulary — uses real Waves.wave / createSampler / createGrid (v3.2.6) */
+/* p5.waves visual vocabulary: uses real Waves.wave / createSampler / createGrid (v3.2.6) */
 
 const palette = {
   ink: "#111213",
@@ -111,7 +111,7 @@ function bootHero() {
 }
 
 /* ---------- function-switcher render modes ----------
- * Four totally different graphic jobs — wave curve, typography, meter,
+ * Four totally different graphic jobs: wave curve, typography, meter,
  * dot grid. The shift is the trigger; each completed shift advances to
  * the next mode. The wave name doesn't pick the mode, the schedule does.
  */
@@ -164,7 +164,7 @@ function modeMeter(ctx, w, h, t, s) {
 }
 
 function modeGrid(ctx, w, h, t, s) {
-  // Wave-driven dot grid — radius leaves visible whitespace
+  // Wave-driven dot grid: radius leaves visible whitespace
   const cols = 14;
   const rows = 6;
   const cw = w / cols;
@@ -202,11 +202,11 @@ const modules = [
     id: "drifting-label",
     name: "Drifting Label",
     category: "motion",
-    role: "meta sine drifts the label unevenly — amplitude varies over time, so the offset never quite repeats.",
+    role: "meta sine drifts the label unevenly: amplitude varies over time, so the offset never quite repeats.",
     tags: ["label", "position", "meta sine"],
     primitive: PRIMITIVES.wave,
     reuse: "captions",
-    notes: "meta sine is a sine whose amplitude is itself modulated — the label drifts and breathes at the same time. Plain sin() would feel mechanical.",
+    notes: "meta sine is a sine whose amplitude is itself modulated: the label drifts and breathes at the same time. Plain sin() would feel mechanical.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       gridGuide(ctx, w, h);
@@ -306,7 +306,7 @@ function draw() {
     id: "interference-grid",
     name: "Interference Grid",
     category: "grid",
-    role: "createGrid sums a row-wave and a col-wave — same frequency, different phase, interference.",
+    role: "createGrid sums a row-wave and a col-wave: same frequency, different phase, interference.",
     tags: ["createGrid", "moire"],
     primitive: PRIMITIVES.grid,
     reuse: "matrix backgrounds",
@@ -369,7 +369,7 @@ function draw() {
     tags: ["createGrid", "threshold", "binary"],
     primitive: PRIMITIVES.grid,
     reuse: "matrix backgrounds",
-    notes: "createGrid with threshold returns a Uint8Array of 0/1 — perfect for monochrome patterns.",
+    notes: "createGrid with threshold returns a Uint8Array of 0/1: perfect for monochrome patterns.",
     state: { grid: null, cols: 22, rows: 10, t: 0 },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.paper);
@@ -425,11 +425,11 @@ function draw() {
     id: "signal-palette",
     name: "Signal Palette",
     category: "color",
-    role: "stepped sine snaps between swatches — the picker rests on each one before jumping.",
+    role: "stepped sine snaps between swatches: the picker rests on each one before jumping.",
     tags: ["swatch", "emphasis", "stepped sine"],
     primitive: PRIMITIVES.wave,
     reuse: "emphasis swatches",
-    notes: "stepped sine is a sine quantised into 8 steps — it hesitates on each value, ideal for picking from a list without floor() trickery.",
+    notes: "stepped sine is a sine quantised into 8 steps: it hesitates on each value, ideal for picking from a list without floor() trickery.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       const swatches = ACCENT;
@@ -517,11 +517,11 @@ function draw() {
     id: "live-loader",
     name: "Live Loader",
     category: "interface",
-    role: "fuzzy peak sine reads as 'working, not stuck' — a loader that hesitates the way real systems do.",
+    role: "fuzzy peak sine reads as 'working, not stuck': a loader that hesitates the way real systems do.",
     tags: ["loading", "progress", "fuzzy peak sine"],
     primitive: PRIMITIVES.wave,
     reuse: "waiting states",
-    notes: "fuzzy peak sine = sine with modulo-noise. The bar advances unevenly — far more honest than a clean ramp for indeterminate progress.",
+    notes: "fuzzy peak sine = sine with modulo-noise. The bar advances unevenly: far more honest than a clean ramp for indeterminate progress.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       const v = norm(Waves.wave(0, { wave: "fuzzy peak sine", t: t * 0.8, amplitude: 1 }));
@@ -556,11 +556,11 @@ function draw() {
     id: "wave-shift-readout",
     name: "Wave Shift Readout",
     category: "state",
-    role: "Real sampler exposes waveName, targetName, mix — readable as a tool state.",
+    role: "Real sampler exposes waveName, targetName, mix: readable as a tool state.",
     tags: ["sampler", "shift"],
     primitive: PRIMITIVES.sampler,
     reuse: "tool readouts",
-    notes: "These getters are live — drop them into any UI to show which wave is active and where it's heading.",
+    notes: "These getters are live: drop them into any UI to show which wave is active and where it's heading.",
     state: { sampler: null },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
@@ -623,7 +623,7 @@ function draw() {
     tags: ["sampler", "shift", "name"],
     primitive: PRIMITIVES.sampler,
     reuse: "live labels",
-    notes: "Shift gives you a slow stream of changing wave names — a typographic showcase of the 34 formulas.",
+    notes: "Shift gives you a slow stream of changing wave names: a typographic showcase of the 34 formulas.",
     state: { sampler: null },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.paper);
@@ -773,7 +773,7 @@ function draw() {
     id: "scanning-divider",
     name: "Scanning Divider",
     category: "layout",
-    role: "mountain peaks lingers near the edges and races through the middle — the divider stutters on its way.",
+    role: "mountain peaks lingers near the edges and races through the middle: the divider stutters on its way.",
     tags: ["divider", "scan", "mountain peaks"],
     primitive: PRIMITIVES.wave,
     reuse: "section breaks",
@@ -786,7 +786,7 @@ function draw() {
       ctx.moveTo(w * 0.08, h * 0.5);
       ctx.lineTo(w * 0.92, h * 0.5);
       ctx.stroke();
-      // peak markers — discrete anchors the tick visits
+      // peak markers: discrete anchors the tick visits
       for (let i = 0; i <= 4; i++) {
         const ax = w * 0.08 + w * 0.84 * (i / 4);
         ctx.fillStyle = palette.line;
@@ -818,7 +818,7 @@ function draw() {
     id: "word-gate",
     name: "Word Gate",
     category: "type",
-    role: "A pulse wave turns individual words on or off — copy becomes a sequencer.",
+    role: "A pulse wave turns individual words on or off: copy becomes a sequencer.",
     tags: ["gate", "pulse"],
     primitive: PRIMITIVES.wave,
     reuse: "typography",
@@ -869,7 +869,7 @@ function draw() {
     id: "row-pulse",
     name: "Row Pulse",
     category: "grid",
-    role: "stepped sine settles on each row before moving — the highlight has a real dwell.",
+    role: "stepped sine settles on each row before moving: the highlight has a real dwell.",
     tags: ["scanner", "row", "stepped sine"],
     primitive: PRIMITIVES.wave,
     reuse: "data tables",
@@ -915,7 +915,7 @@ function draw() {
     id: "halftone-field",
     name: "Halftone Field",
     category: "texture",
-    role: "Dot radius is driven by a per-position wave — a print halftone that breathes.",
+    role: "Dot radius is driven by a per-position wave: a print halftone that breathes.",
     tags: ["halftone", "dots"],
     primitive: PRIMITIVES.sampler,
     reuse: "print texture",
@@ -965,7 +965,7 @@ function draw() {
     id: "oscillating-marker",
     name: "Oscillating Marker",
     category: "motion",
-    role: "batman draws a notched arc — the marker hesitates at landmarks, not just the endpoints.",
+    role: "batman draws a notched arc: the marker hesitates at landmarks, not just the endpoints.",
     tags: ["marker", "step", "batman"],
     primitive: PRIMITIVES.wave,
     reuse: "stepper indicators",
@@ -1010,7 +1010,7 @@ function draw() {
     id: "wave-word-picker",
     name: "Wave Word Picker",
     category: "type",
-    role: "A wave value indexes into a small list — copy becomes a rotating dial.",
+    role: "A wave value indexes into a small list: copy becomes a rotating dial.",
     tags: ["picker", "rotation"],
     primitive: PRIMITIVES.wave,
     reuse: "rotating copy",
@@ -1046,7 +1046,7 @@ function draw() {
     id: "column-pulse",
     name: "Column Pulse",
     category: "grid",
-    role: "steps marches the highlight column by column — a true staircase, not a slide.",
+    role: "steps marches the highlight column by column: a true staircase, not a slide.",
     tags: ["scanner", "column", "steps"],
     primitive: PRIMITIVES.wave,
     reuse: "focus indicators",
@@ -1088,7 +1088,7 @@ function draw() {
     id: "opacity-rhythm",
     name: "Opacity Rhythm",
     category: "color",
-    role: "Per-element opacity is offset along x — a single sampler animates a whole row.",
+    role: "Per-element opacity is offset along x: a single sampler animates a whole row.",
     tags: ["alpha", "rhythm"],
     primitive: PRIMITIVES.sampler,
     reuse: "spacers",
@@ -1133,7 +1133,7 @@ function draw() {
     id: "notification-rhythm",
     name: "Notification Rhythm",
     category: "interface",
-    role: "A pulse builds and decays — a heartbeat for unread counts, presence, or alerts.",
+    role: "A pulse builds and decays: a heartbeat for unread counts, presence, or alerts.",
     tags: ["pulse", "notification"],
     primitive: PRIMITIVES.wave,
     reuse: "alerts",
@@ -1231,7 +1231,7 @@ function draw() {
     id: "function-switcher",
     name: "Function Switcher",
     category: "state",
-    role: "Each completed shift advances a mode index — the schedule dispatches *which graphic job* runs.",
+    role: "Each completed shift advances a mode index: the schedule dispatches *which graphic job* runs.",
     tags: ["sampler", "shift", "dispatch", "switcher"],
     primitive: PRIMITIVES.sampler,
     reuse: "behaviour swaps",
@@ -1270,7 +1270,7 @@ function draw() {
         next.render(ctx, w, h, t, s);
       }
 
-      // Header strip — held: just the mode; shifting: prev → next + mix bar
+      // Header strip. Held state shows the mode; shifting shows prev → next with a mix bar.
       if (s.shifting) {
         label(ctx, `${prev.label} ↗ ${next.label}`, 14, 18, palette.peach, 11);
         ctx.fillStyle = palette.line;
@@ -1282,7 +1282,7 @@ function draw() {
       }
     },
     sketch: sketchTemplate(`
-// Function Switcher — dispatch on shift, not on wave name.
+// Function Switcher: dispatch on shift, not on wave name.
 // Each shift end advances the mode index.
 let s;
 let prevMode = 0, nextMode = 1, wasShifting = false;
@@ -1370,7 +1370,7 @@ function drawGrid(t, s) {
     id: "rhythmic-divider",
     name: "Rhythmic Divider",
     category: "layout",
-    role: "A divider made of pulses — the same wave drives all dashes at once.",
+    role: "A divider made of pulses: the same wave drives all dashes at once.",
     tags: ["divider", "dashes"],
     primitive: PRIMITIVES.sampler,
     reuse: "section breaks",
@@ -1414,7 +1414,7 @@ function draw() {
     id: "pattern-tile",
     name: "Pattern Tile",
     category: "texture",
-    role: "createGrid yields a tileable pattern field — drop it on a poster or a fill area.",
+    role: "createGrid yields a tileable pattern field: drop it on a poster or a fill area.",
     tags: ["createGrid", "tile", "print"],
     primitive: PRIMITIVES.grid,
     reuse: "fill patterns",
@@ -1469,7 +1469,7 @@ function draw() {
     id: "cursor-echo",
     name: "Cursor Echo",
     category: "motion",
-    role: "Multiple trailing dots — each one a single sampler call with a per-trail offset.",
+    role: "Multiple trailing dots: each one a single sampler call with a per-trail offset.",
     tags: ["trail", "echo"],
     primitive: PRIMITIVES.sampler,
     reuse: "pointer feedback",
@@ -1515,7 +1515,7 @@ function draw() {
     id: "contrast-meter",
     name: "Contrast Meter",
     category: "color",
-    role: "Wave value drives a black/white split — readable as a brightness oscillation.",
+    role: "Wave value drives a black/white split: readable as a brightness oscillation.",
     tags: ["contrast", "split"],
     primitive: PRIMITIVES.wave,
     reuse: "preview chips",
@@ -1548,7 +1548,7 @@ function draw() {
     id: "hover-pulse",
     name: "Hover Pulse",
     category: "interface",
-    role: "wobble sine gives the halo an uneven breath — alive, not metronomic.",
+    role: "wobble sine gives the halo an uneven breath: alive, not metronomic.",
     tags: ["button", "pulse", "wobble sine"],
     primitive: PRIMITIVES.wave,
     reuse: "cta buttons",
@@ -1592,7 +1592,7 @@ function draw() {
     id: "mode-switcher",
     name: "Mode Switcher",
     category: "state",
-    role: "A stepped wave drops a selector between fixed slots — a wave-driven segmented control.",
+    role: "A stepped wave drops a selector between fixed slots: a wave-driven segmented control.",
     tags: ["segmented", "modes"],
     primitive: PRIMITIVES.wave,
     reuse: "view switchers",
@@ -1646,11 +1646,11 @@ function draw() {
     id: "mask-aperture",
     name: "Mask Aperture",
     category: "interface",
-    role: "A wave opens and closes a circular mask — reveal that breathes.",
+    role: "A wave opens and closes a circular mask: reveal that breathes.",
     tags: ["mask", "reveal"],
     primitive: PRIMITIVES.wave,
     reuse: "previews",
-    notes: "Round linked sine gives a soft, organic opening — drop straight on top of any image fill.",
+    notes: "Round linked sine gives a soft, organic opening: drop straight on top of any image fill.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       // base "image"
@@ -1705,7 +1705,7 @@ function draw() {
     id: "border-shift",
     name: "Border Shift",
     category: "layout",
-    role: "An edge dashes left/right — a frame that quietly orients the eye.",
+    role: "An edge dashes left/right: a frame that quietly orients the eye.",
     tags: ["edge", "indicator"],
     primitive: PRIMITIVES.wave,
     reuse: "card edges",
@@ -1744,7 +1744,7 @@ function draw() {
     id: "bending-caption",
     name: "Bending Caption",
     category: "type",
-    role: "Per-letter offsets bend a caption — micro-motion that reads as breath.",
+    role: "Per-letter offsets bend a caption: micro-motion that reads as breath.",
     tags: ["caption", "bend"],
     primitive: PRIMITIVES.sampler,
     reuse: "captions",
@@ -1861,7 +1861,7 @@ function draw() {
     id: "gentle-harsh-pair",
     name: "Gentle vs Harsh",
     category: "texture",
-    role: "Two samplers with the same shift, one group: 'gentle' and one group: 'harsh' — see the families.",
+    role: "Two samplers with the same shift, one in group 'gentle' and one in group 'harsh', show the wave families side by side.",
     tags: ["group", "compare"],
     primitive: PRIMITIVES.sampler,
     reuse: "wave selection",
@@ -1920,11 +1920,11 @@ function draw() {
     id: "wild-terrain",
     name: "Wild Terrain",
     category: "texture",
-    role: "mode: 'wild' + unpredictability warps any wave — terrain-like irregular skyline.",
+    role: "mode: 'wild' + unpredictability warps any wave: terrain-like irregular skyline.",
     tags: ["wild", "terrain"],
     primitive: PRIMITIVES.sampler,
     reuse: "skylines",
-    notes: "Wild mode is ~5× slower than stable — keep it off for 10k-point loops.",
+    notes: "Wild mode is ~5× slower than stable: keep it off for 10k-point loops.",
     state: { sampler: null, ys: null },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
@@ -1995,7 +1995,7 @@ function draw() {
     id: "color-field",
     name: "Color Field",
     category: "color",
-    role: "Two samplers — one for hue, one for brightness — paint a slow color field.",
+    role: "Two samplers, one for hue and one for brightness, paint a slow color field.",
     tags: ["hsb", "field"],
     primitive: PRIMITIVES.sampler,
     reuse: "ambient backgrounds",
@@ -2258,7 +2258,7 @@ function animate(time) {
 
 function boot() {
   if (typeof Waves === "undefined") {
-    // p5.waves not loaded yet — wait
+    // p5.waves not loaded yet: wait
     setTimeout(boot, 30);
     return;
   }
