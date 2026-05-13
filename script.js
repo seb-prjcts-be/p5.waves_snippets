@@ -123,15 +123,15 @@ const modules = [
     id: "drifting-label",
     name: "Drifting Label",
     category: "motion",
-    role: "A wave value becomes a precise horizontal offset for a small annotation.",
-    tags: ["label", "position"],
+    role: "meta sine drifts the label unevenly — amplitude varies over time, so the offset never quite repeats.",
+    tags: ["label", "position", "meta sine"],
     primitive: PRIMITIVES.wave,
     reuse: "captions",
-    notes: "Useful for callouts and editorial labels that should stay legible while feeling active.",
+    notes: "meta sine is a sine whose amplitude is itself modulated — the label drifts and breathes at the same time. Plain sin() would feel mechanical.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       gridGuide(ctx, w, h);
-      const v = Waves.wave(0, { wave: "classic sine", t: t * 0.7, amplitude: 1 });
+      const v = Waves.wave(0, { wave: "meta sine", t: t * 0.7, amplitude: 1 });
       const baseX = w * 0.5;
       const y = h * 0.55;
       const x = baseX + v * w * 0.2;
@@ -158,7 +158,7 @@ function setup() {
 function draw() {
   background(244);
   const t = millis() / 1000;
-  const v = Waves.wave(0, { wave: 'classic sine', t: t * 0.7, amplitude: 1 });
+  const v = Waves.wave(0, { wave: 'meta sine', t: t * 0.7, amplitude: 1 });
   const x = baseX + v * width * 0.2;
   stroke(0); strokeWeight(1.5);
   line(baseX, y + 22, x, y + 22);
@@ -346,15 +346,15 @@ function draw() {
     id: "signal-palette",
     name: "Signal Palette",
     category: "color",
-    role: "A normalised wave value chooses intensity across a compact palette.",
-    tags: ["swatch", "emphasis"],
+    role: "stepped sine snaps between swatches — the picker rests on each one before jumping.",
+    tags: ["swatch", "emphasis", "stepped sine"],
     primitive: PRIMITIVES.wave,
     reuse: "emphasis swatches",
-    notes: "Use the same value to tune fills, borders, and emphasis without making random color choices.",
+    notes: "stepped sine is a sine quantised into 8 steps — it hesitates on each value, ideal for picking from a list without floor() trickery.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       const swatches = ACCENT;
-      const v = norm(Waves.wave(0, { wave: "classic sine", t: t * 0.5, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "stepped sine", t: t * 0.5, amplitude: 1 }));
       const active = clamp(Math.floor(v * swatches.length), 0, swatches.length - 1);
       const sw = w / swatches.length;
       swatches.forEach((c, i) => {
@@ -376,7 +376,7 @@ function setup() { createCanvas(620, 320); noStroke(); }
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'classic sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
   const active = constrain(floor(v * swatches.length), 0, swatches.length - 1);
   const sw = width / swatches.length;
   for (let i = 0; i < swatches.length; i++) {
@@ -438,14 +438,14 @@ function draw() {
     id: "live-loader",
     name: "Live Loader",
     category: "interface",
-    role: "A ramp wave maps to progress so a waiting state has a readable rhythm.",
-    tags: ["loading", "progress"],
+    role: "fuzzy peak sine reads as 'working, not stuck' — a loader that hesitates the way real systems do.",
+    tags: ["loading", "progress", "fuzzy peak sine"],
     primitive: PRIMITIVES.wave,
     reuse: "waiting states",
-    notes: "The value never needs to be real progress; it can simply communicate that the system is alive.",
+    notes: "fuzzy peak sine = sine with modulo-noise. The bar advances unevenly — far more honest than a clean ramp for indeterminate progress.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "ramp", t: t * 0.5, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "fuzzy peak sine", t: t * 0.5, amplitude: 1 }));
       const x = w * 0.14;
       const y = h * 0.48;
       const trackW = w * 0.72;
@@ -462,7 +462,7 @@ function setup() { createCanvas(620, 320); }
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'ramp', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'fuzzy peak sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
   const x = width * 0.14, y = height * 0.48, trackW = width * 0.72;
   noFill(); stroke(0); strokeWeight(1.5);
   rect(x, y, trackW, 18);
@@ -694,11 +694,11 @@ function draw() {
     id: "scanning-divider",
     name: "Scanning Divider",
     category: "layout",
-    role: "A bright tick travels along a horizontal rule — divider as event, not decoration.",
-    tags: ["divider", "scan"],
+    role: "mountain peaks lingers near the edges and races through the middle — the divider stutters on its way.",
+    tags: ["divider", "scan", "mountain peaks"],
     primitive: PRIMITIVES.wave,
     reuse: "section breaks",
-    notes: "Useful between dense modules where a static rule would feel inert.",
+    notes: "mountain peaks has a non-linear ride: it dwells at peaks and drops fast between them. A linear saw would feel too automatic.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       ctx.strokeStyle = palette.ink;
@@ -707,7 +707,13 @@ function draw() {
       ctx.moveTo(w * 0.08, h * 0.5);
       ctx.lineTo(w * 0.92, h * 0.5);
       ctx.stroke();
-      const v = norm(Waves.wave(0, { wave: "saw up", t: t * 0.5, amplitude: 1 }));
+      // peak markers — discrete anchors the tick visits
+      for (let i = 0; i <= 4; i++) {
+        const ax = w * 0.08 + w * 0.84 * (i / 4);
+        ctx.fillStyle = palette.line;
+        ctx.fillRect(ax - 1, h * 0.5 - 6, 2, 12);
+      }
+      const v = norm(Waves.wave(0, { wave: "mountain peaks", t: t * 0.5, amplitude: 1 }));
       const tickX = w * 0.08 + w * 0.84 * v;
       ctx.fillStyle = palette.peach;
       ctx.fillRect(tickX - 3, h * 0.5 - 16, 6, 32);
@@ -720,7 +726,7 @@ function setup() { createCanvas(620, 320); }
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'saw up', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'mountain peaks', t: t * 0.5, amplitude: 1 }) + 1) / 2;
   stroke(0); strokeWeight(1.5);
   line(width * 0.08, height / 2, width * 0.92, height / 2);
   const tx = width * 0.08 + width * 0.84 * v;
@@ -784,17 +790,17 @@ function draw() {
     id: "row-pulse",
     name: "Row Pulse",
     category: "grid",
-    role: "One row is highlighted at a time — a vertical scanner across rows.",
-    tags: ["scanner", "row"],
+    role: "stepped sine settles on each row before moving — the highlight has a real dwell.",
+    tags: ["scanner", "row", "stepped sine"],
     primitive: PRIMITIVES.wave,
     reuse: "data tables",
-    notes: "Practical for list states, focus rows, and reading guides.",
+    notes: "stepped sine quantises into 8 steps; the scanner *holds* each row instead of sliding through. floor(t) would jump without the rest.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       const rows = 7;
       const rh = h * 0.78 / rows;
       const top = h * 0.11;
-      const v = norm(Waves.wave(0, { wave: "saw up", t: t * 0.7, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "stepped sine", t: t * 0.7, amplitude: 1 }));
       const active = clamp(Math.floor(v * rows), 0, rows - 1);
       for (let r = 0; r < rows; r++) {
         const y = top + r * rh;
@@ -813,7 +819,7 @@ function draw() {
   const t = millis() / 1000;
   const rows = 7;
   const rh = height * 0.78 / rows, top = height * 0.11;
-  const v = (Waves.wave(0, { wave: 'saw up', t: t * 0.7, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 0.7, amplitude: 1 }) + 1) / 2;
   const active = constrain(floor(v * rows), 0, rows - 1);
   for (let r = 0; r < rows; r++) {
     const y = top + r * rh;
@@ -880,14 +886,14 @@ function draw() {
     id: "oscillating-marker",
     name: "Oscillating Marker",
     category: "motion",
-    role: "A marker swings between two anchors — useful for index, focus, or step indicators.",
-    tags: ["marker", "step"],
+    role: "batman draws a notched arc — the marker hesitates at landmarks, not just the endpoints.",
+    tags: ["marker", "step", "batman"],
     primitive: PRIMITIVES.wave,
     reuse: "stepper indicators",
-    notes: "Triangle gives a constant-velocity swing; sine gives a soft ease at the ends.",
+    notes: "batman is one of p5.waves' shaped waves: dips and notches built into the curve. Use when the journey itself should signal structure.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "triangle", t: t * 0.5, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "batman", t: t * 0.5, amplitude: 1 }));
       const startX = w * 0.14;
       const endX = w * 0.86;
       const x = lerp(startX, endX, v);
@@ -911,7 +917,7 @@ function setup() { createCanvas(620, 320); }
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'triangle', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'batman', t: t * 0.5, amplitude: 1 }) + 1) / 2;
   const sx = width * 0.14, ex = width * 0.86, y = height / 2;
   stroke(220); strokeWeight(2); line(sx, y, ex, y);
   noStroke(); fill(0);
@@ -961,17 +967,17 @@ function draw() {
     id: "column-pulse",
     name: "Column Pulse",
     category: "grid",
-    role: "Columns light up in sequence — a horizontal scanner across a wide grid.",
-    tags: ["scanner", "column"],
+    role: "steps marches the highlight column by column — a true staircase, not a slide.",
+    tags: ["scanner", "column", "steps"],
     primitive: PRIMITIVES.wave,
     reuse: "focus indicators",
-    notes: "Pairs naturally with Row Pulse for a crosshair-style highlight.",
+    notes: "steps is a pure staircase wave: equal-width plateaus, sharp edges. Pairs with Row Pulse's stepped sine for a crosshair that *commits*.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       const cols = 14;
       const cw = w * 0.84 / cols;
       const startX = w * 0.08;
-      const v = norm(Waves.wave(0, { wave: "ramp", t: t * 0.7, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "steps", t: t * 0.7, amplitude: 1 }));
       const active = clamp(Math.floor(v * cols), 0, cols - 1);
       for (let c = 0; c < cols; c++) {
         const x = startX + c * cw;
@@ -988,7 +994,7 @@ function draw() {
   const t = millis() / 1000;
   const cols = 14;
   const cw = width * 0.84 / cols, sx = width * 0.08;
-  const v = (Waves.wave(0, { wave: 'ramp', t: t * 0.7, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'steps', t: t * 0.7, amplitude: 1 }) + 1) / 2;
   const a = constrain(floor(v * cols), 0, cols - 1);
   for (let c = 0; c < cols; c++) {
     fill(c === a ? '#b8d2ff' : 244);
@@ -1324,14 +1330,14 @@ function draw() {
     id: "hover-pulse",
     name: "Hover Pulse",
     category: "interface",
-    role: "A button highlight pulses while idle — readable affordance, low attention cost.",
-    tags: ["button", "pulse"],
+    role: "wobble sine gives the halo an uneven breath — alive, not metronomic.",
+    tags: ["button", "pulse", "wobble sine"],
     primitive: PRIMITIVES.wave,
     reuse: "cta buttons",
-    notes: "Replace the idle pulse with a faster wave on actual hover.",
+    notes: "wobble sine is amplitude-modulated: the pulse waxes and wanes irregularly. A plain sine would feel like a heartbeat monitor.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "classic sine", t: t * 0.5, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "wobble sine", t: t * 0.5, amplitude: 1 }));
       const bx = w * 0.22;
       const by = h * 0.38;
       const bw = w * 0.56;
@@ -1354,7 +1360,7 @@ function setup() { createCanvas(620, 320); textFont('Oswald'); }
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'classic sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'wobble sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
   const bx = width * 0.22, by = height * 0.38, bw = width * 0.56, bh = height * 0.24;
   noStroke(); fill(199, 232, 156, 75 + v * 128);
   rect(bx - 10, by - 10, bw + 20, bh + 20);
