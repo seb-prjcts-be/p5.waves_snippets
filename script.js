@@ -73,10 +73,10 @@ function bootHero() {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   const bands = [
-    { sampler: Waves.createSampler({ shift: true, shiftInterval: 6, shiftDuration: 2.4, group: "gentle", range: [-1, 1] }), color: palette.peach, alpha: 0.55, freq: 0.0035, speed: 0.18, baseY: 0.32, amp: 0.18 },
-    { sampler: Waves.createSampler({ shift: true, shiftInterval: 5, shiftDuration: 2.0, group: "gentle", range: [-1, 1] }), color: palette.pink,  alpha: 0.55, freq: 0.0045, speed: 0.22, baseY: 0.48, amp: 0.22 },
-    { sampler: Waves.createSampler({ shift: true, shiftInterval: 7, shiftDuration: 2.6, group: "gentle", range: [-1, 1] }), color: palette.sky,   alpha: 0.6,  freq: 0.003,  speed: 0.16, baseY: 0.66, amp: 0.2  },
-    { sampler: Waves.createSampler({ shift: true, shiftInterval: 8, shiftDuration: 2.8, group: "gentle", range: [-1, 1] }), color: palette.lemon, alpha: 0.5,  freq: 0.005,  speed: 0.24, baseY: 0.82, amp: 0.14 }
+    { sampler: Waves.createSampler({ shift: true, shiftInterval: 4, shiftDuration: 1.8, group: "gentle", range: [-1, 1] }), color: palette.peach, alpha: 0.55, freq: 0.0035, speed: 0.32, baseY: 0.32, amp: 0.18 },
+    { sampler: Waves.createSampler({ shift: true, shiftInterval: 3, shiftDuration: 1.5, group: "gentle", range: [-1, 1] }), color: palette.pink,  alpha: 0.55, freq: 0.0045, speed: 0.38, baseY: 0.48, amp: 0.22 },
+    { sampler: Waves.createSampler({ shift: true, shiftInterval: 5, shiftDuration: 2.0, group: "gentle", range: [-1, 1] }), color: palette.sky,   alpha: 0.6,  freq: 0.003,  speed: 0.28, baseY: 0.66, amp: 0.2  },
+    { sampler: Waves.createSampler({ shift: true, shiftInterval: 6, shiftDuration: 2.2, group: "gentle", range: [-1, 1] }), color: palette.lemon, alpha: 0.5,  freq: 0.005,  speed: 0.42, baseY: 0.82, amp: 0.14 }
   ];
 
   function frame(time) {
@@ -210,7 +210,7 @@ const modules = [
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       gridGuide(ctx, w, h);
-      const v = Waves.wave(0, { wave: "meta sine", t: t * 0.7, amplitude: 1 });
+      const v = Waves.wave(0, { wave: "meta sine", t: t * 1.0, amplitude: 1 });
       const baseX = w * 0.5;
       const y = h * 0.55;
       const x = baseX + v * w * 0.2;
@@ -237,7 +237,7 @@ function setup() {
 function draw() {
   background(244);
   const t = millis() / 1000;
-  const v = Waves.wave(0, { wave: 'meta sine', t: t * 0.7, amplitude: 1 });
+  const v = Waves.wave(0, { wave: 'meta sine', t: t * 1.0, amplitude: 1 });
   const x = baseX + v * width * 0.2;
   stroke(0); strokeWeight(1.5);
   line(baseX, y + 22, x, y + 22);
@@ -262,7 +262,7 @@ function draw() {
     notes: "A compact way to animate hierarchy in titles, section markers, and display typography.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "bumpy sine", t: t * 0.5, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "bumpy sine", t: t * 0.8, amplitude: 1 }));
       const tracking = lerp(2, 22, v);
       const letters = "SIGNAL".split("");
       const fontSize = Math.min(64, w * 0.13);
@@ -285,7 +285,7 @@ function setup() { createCanvas(620, 320); textFont('Oswald'); }
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'bumpy sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'bumpy sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
   const tracking = map(v, 0, 1, 2, 22);
   const letters = 'SIGNAL'.split('');
   const fs = min(64, width * 0.13);
@@ -322,7 +322,7 @@ function draw() {
           speed: 0.4
         });
       }
-      const cells = state.grid.sample(t * 0.5);
+      const cells = state.grid.sample(t * 0.8);
       const cw = w / state.cols;
       const ch = h / state.rows;
       for (let r = 0; r < state.rows; r++) {
@@ -349,7 +349,7 @@ function setup() {
 }
 function draw() {
   background(244);
-  const cells = g.sample(millis() / 1000 * 0.5);
+  const cells = g.sample(millis() / 1000 * 0.8);
   const cw = width / COLS, ch = height / ROWS;
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
@@ -381,7 +381,7 @@ function draw() {
           speed: 0.5
         });
       }
-      const cells = state.grid.sample(t * 0.7);
+      const cells = state.grid.sample(t * 1.0);
       const gap = 4;
       const cw = (w - gap * (state.cols + 1)) / state.cols;
       const ch = (h - gap * (state.rows + 1)) / state.rows;
@@ -408,7 +408,7 @@ function setup() {
 }
 function draw() {
   background(244);
-  const cells = g.sample(millis() / 1000 * 0.7);
+  const cells = g.sample(millis() / 1000 * 1.0);
   const gap = 4;
   const cw = (width - gap * (COLS + 1)) / COLS;
   const ch = (height - gap * (ROWS + 1)) / ROWS;
@@ -433,7 +433,7 @@ function draw() {
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       const swatches = ACCENT;
-      const v = norm(Waves.wave(0, { wave: "stepped sine", t: t * 0.5, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "stepped sine", t: t * 0.8, amplitude: 1 }));
       const active = clamp(Math.floor(v * swatches.length), 0, swatches.length - 1);
       const sw = w / swatches.length;
       swatches.forEach((c, i) => {
@@ -455,7 +455,7 @@ function setup() { createCanvas(620, 320); noStroke(); }
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
   const active = constrain(floor(v * swatches.length), 0, swatches.length - 1);
   const sw = width / swatches.length;
   for (let i = 0; i < swatches.length; i++) {
@@ -482,7 +482,7 @@ function draw() {
     notes: "A small texture module that can become a mask, poster field, or exportable tile.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.paper);
-      const pressure = Waves.wave(0, { wave: "triangle", t: t * 0.5, amplitude: 1 });
+      const pressure = Waves.wave(0, { wave: "triangle", t: t * 0.8, amplitude: 1 });
       const gap = lerp(20, 7, norm(pressure));
       ctx.strokeStyle = palette.ink;
       ctx.lineWidth = 1.3;
@@ -502,7 +502,7 @@ function setup() { createCanvas(620, 320); }
 function draw() {
   background(244);
   const t = millis() / 1000;
-  const p = Waves.wave(0, { wave: 'triangle', t: t * 0.5, amplitude: 1 });
+  const p = Waves.wave(0, { wave: 'triangle', t: t * 0.8, amplitude: 1 });
   const gap = map(p, -1, 1, 20, 7);
   stroke(0); strokeWeight(1.3); noFill();
   for (let x = -width; x < width * 2; x += gap) {
@@ -524,7 +524,7 @@ function draw() {
     notes: "fuzzy peak sine = sine with modulo-noise. The bar advances unevenly — far more honest than a clean ramp for indeterminate progress.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "fuzzy peak sine", t: t * 0.5, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "fuzzy peak sine", t: t * 0.8, amplitude: 1 }));
       const x = w * 0.14;
       const y = h * 0.48;
       const trackW = w * 0.72;
@@ -541,7 +541,7 @@ function setup() { createCanvas(620, 320); }
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'fuzzy peak sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'fuzzy peak sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
   const x = width * 0.14, y = height * 0.48, trackW = width * 0.72;
   noFill(); stroke(0); strokeWeight(1.5);
   rect(x, y, trackW, 18);
@@ -597,7 +597,7 @@ let s;
 function setup() {
   createCanvas(620, 320);
   textFont('Oswald');
-  s = Waves.createSampler({ shift: true, shiftInterval: 3, shiftDuration: 1.2, group: 'gentle' });
+  s = Waves.createSampler({ shift: true, shiftInterval: 2, shiftDuration: 0.8, group: 'gentle' });
 }
 function draw() {
   background(255);
@@ -628,7 +628,7 @@ function draw() {
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.paper);
       if (!state.sampler) {
-        state.sampler = Waves.createSampler({ shift: true, shiftInterval: 3, shiftDuration: 1.2, group: "all" });
+        state.sampler = Waves.createSampler({ shift: true, shiftInterval: 2, shiftDuration: 0.8, group: "all" });
       }
       state.sampler.sample(0, t);
       const s = state.sampler;
@@ -649,7 +649,7 @@ let s;
 function setup() {
   createCanvas(620, 320);
   textFont('Oswald');
-  s = Waves.createSampler({ shift: true, shiftInterval: 3, shiftDuration: 1.2 });
+  s = Waves.createSampler({ shift: true, shiftInterval: 2, shiftDuration: 0.8 });
 }
 function draw() {
   background(244);
@@ -682,13 +682,13 @@ function draw() {
           amplitude: 1
         });
       }
-      const mix = (Math.sin(t * 0.5) + 1) / 2;
+      const mix = (Math.sin(t * 0.8) + 1) / 2;
       const amp = h * 0.32;
       ctx.strokeStyle = palette.ink;
       ctx.lineWidth = 2;
       ctx.beginPath();
       for (let x = 0; x <= w; x += 3) {
-        const y = state.sampler.sample(x * 0.02, t * 0.5, mix) * amp;
+        const y = state.sampler.sample(x * 0.02, t * 0.8, mix) * amp;
         if (x === 0) ctx.moveTo(x, h * 0.5 + y);
         else ctx.lineTo(x, h * 0.5 + y);
       }
@@ -704,12 +704,12 @@ function setup() {
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const mix = (sin(t * 0.5) + 1) / 2;
+  const mix = (sin(t * 0.8) + 1) / 2;
   const amp = height * 0.32;
   stroke(0); strokeWeight(2);
   beginShape();
   for (let x = 0; x <= width; x += 3) {
-    vertex(x, height / 2 + s.sample(x * 0.02, t * 0.5, mix) * amp);
+    vertex(x, height / 2 + s.sample(x * 0.02, t * 0.8, mix) * amp);
   }
   endShape();
   noStroke(); fill(0); textSize(12);
@@ -728,7 +728,7 @@ function draw() {
     notes: "Use to give a static layout a small living quality without losing its structure.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "classic sine", t: t * 0.5, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "classic sine", t: t * 0.8, amplitude: 1 }));
       const ratios = [1 + v * 0.8, 1.4 - v * 0.5, 0.9 + v * 0.4, 1.2 - v * 0.3];
       const total = ratios.reduce((a, b) => a + b, 0);
       let x = w * 0.06;
@@ -755,7 +755,7 @@ function setup() { createCanvas(620, 320); }
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'classic sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'classic sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
   const ratios = [1 + v * 0.8, 1.4 - v * 0.5, 0.9 + v * 0.4, 1.2 - v * 0.3];
   const total = ratios.reduce((a, b) => a + b, 0);
   let x = width * 0.06;
@@ -792,7 +792,7 @@ function draw() {
         ctx.fillStyle = palette.line;
         ctx.fillRect(ax - 1, h * 0.5 - 6, 2, 12);
       }
-      const v = norm(Waves.wave(0, { wave: "mountain peaks", t: t * 0.5, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "mountain peaks", t: t * 0.8, amplitude: 1 }));
       const tickX = w * 0.08 + w * 0.84 * v;
       ctx.fillStyle = palette.peach;
       ctx.fillRect(tickX - 3, h * 0.5 - 16, 6, 32);
@@ -805,7 +805,7 @@ function setup() { createCanvas(620, 320); }
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'mountain peaks', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'mountain peaks', t: t * 0.8, amplitude: 1 }) + 1) / 2;
   stroke(0); strokeWeight(1.5);
   line(width * 0.08, height / 2, width * 0.92, height / 2);
   const tx = width * 0.08 + width * 0.84 * v;
@@ -835,7 +835,7 @@ function draw() {
       let x = (w - total) * 0.5;
       const y = h * 0.5;
       words.forEach((word, i) => {
-        const v = Waves.wave(i * 0.4, { wave: "pulse", t: t * 0.6, amplitude: 1 });
+        const v = Waves.wave(i * 0.4, { wave: "pulse", t: t * 0.9, amplitude: 1 });
         const on = v > 0;
         ctx.fillStyle = on ? palette.ink : palette.line;
         ctx.fillText(word, x, y);
@@ -856,7 +856,7 @@ function draw() {
   const total = widths.reduce((a, b) => a + b, 0) + 26 * (words.length - 1);
   let x = (width - total) / 2;
   for (let i = 0; i < words.length; i++) {
-    const v = Waves.wave(i * 0.4, { wave: 'pulse', t: t * 0.6, amplitude: 1 });
+    const v = Waves.wave(i * 0.4, { wave: 'pulse', t: t * 0.9, amplitude: 1 });
     const on = v > 0;
     fill(on ? 0 : 220); text(words[i], x, height / 2);
     if (on) { fill(246, 167, 150); rect(x, height / 2 + 20, widths[i], 4); }
@@ -879,7 +879,7 @@ function draw() {
       const rows = 7;
       const rh = h * 0.78 / rows;
       const top = h * 0.11;
-      const v = norm(Waves.wave(0, { wave: "stepped sine", t: t * 0.7, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "stepped sine", t: t * 1.0, amplitude: 1 }));
       const active = clamp(Math.floor(v * rows), 0, rows - 1);
       for (let r = 0; r < rows; r++) {
         const y = top + r * rh;
@@ -898,7 +898,7 @@ function draw() {
   const t = millis() / 1000;
   const rows = 7;
   const rh = height * 0.78 / rows, top = height * 0.11;
-  const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 0.7, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 1.0, amplitude: 1 }) + 1) / 2;
   const active = constrain(floor(v * rows), 0, rows - 1);
   for (let r = 0; r < rows; r++) {
     const y = top + r * rh;
@@ -933,7 +933,7 @@ function draw() {
       ctx.fillStyle = palette.ink;
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          const v = state.sampler.sample(c * 0.4 + r * 0.6, t * 0.5);
+          const v = state.sampler.sample(c * 0.4 + r * 0.6, t * 0.8);
           const rad = Math.max(0.5, v * Math.min(cw, ch) * 0.55);
           ctx.beginPath();
           ctx.arc(c * cw + cw / 2, r * ch + ch / 2, rad, 0, Math.PI * 2);
@@ -954,7 +954,7 @@ function draw() {
   const cw = width / COLS, ch = height / ROWS;
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      const v = s.sample(c * 0.4 + r * 0.6, t * 0.5);
+      const v = s.sample(c * 0.4 + r * 0.6, t * 0.8);
       circle(c * cw + cw / 2, r * ch + ch / 2, max(1, v * min(cw, ch) * 1.1));
     }
   }
@@ -972,7 +972,7 @@ function draw() {
     notes: "batman is one of p5.waves' shaped waves: dips and notches built into the curve. Use when the journey itself should signal structure.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "batman", t: t * 0.5, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "batman", t: t * 0.8, amplitude: 1 }));
       const startX = w * 0.14;
       const endX = w * 0.86;
       const x = lerp(startX, endX, v);
@@ -996,7 +996,7 @@ function setup() { createCanvas(620, 320); }
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'batman', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'batman', t: t * 0.8, amplitude: 1 }) + 1) / 2;
   const sx = width * 0.14, ex = width * 0.86, y = height / 2;
   stroke(220); strokeWeight(2); line(sx, y, ex, y);
   noStroke(); fill(0);
@@ -1018,7 +1018,7 @@ function draw() {
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       const options = ["DRIFT", "GATE", "PULSE", "FOLD", "SCAN", "SHIFT"];
-      const v = norm(Waves.wave(0, { wave: "stepped sine", t: t * 0.5, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "stepped sine", t: t * 0.8, amplitude: 1 }));
       const i = clamp(Math.floor(v * options.length), 0, options.length - 1);
       const fontSize = Math.min(78, w * 0.16);
       ctx.font = `600 ${fontSize}px Oswald, sans-serif`;
@@ -1035,7 +1035,7 @@ function setup() { createCanvas(620, 320); textFont('Oswald'); }
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
   const i = constrain(floor(v * opts.length), 0, opts.length - 1);
   textSize(78); fill(0); text(opts[i], width * 0.1, height * 0.55);
   textSize(13); fill(120); text('INDEX ' + i + ' / ' + (opts.length - 1), width * 0.1, height * 0.86);
@@ -1056,7 +1056,7 @@ function draw() {
       const cols = 14;
       const cw = w * 0.84 / cols;
       const startX = w * 0.08;
-      const v = norm(Waves.wave(0, { wave: "steps", t: t * 0.7, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "steps", t: t * 1.0, amplitude: 1 }));
       const active = clamp(Math.floor(v * cols), 0, cols - 1);
       for (let c = 0; c < cols; c++) {
         const x = startX + c * cw;
@@ -1073,7 +1073,7 @@ function draw() {
   const t = millis() / 1000;
   const cols = 14;
   const cw = width * 0.84 / cols, sx = width * 0.08;
-  const v = (Waves.wave(0, { wave: 'steps', t: t * 0.7, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'steps', t: t * 1.0, amplitude: 1 }) + 1) / 2;
   const a = constrain(floor(v * cols), 0, cols - 1);
   for (let c = 0; c < cols; c++) {
     fill(c === a ? '#b8d2ff' : 244);
@@ -1104,7 +1104,7 @@ function draw() {
       const cw = (w * 0.86 - gap * (count - 1)) / count;
       const startX = w * 0.07;
       for (let i = 0; i < count; i++) {
-        const a = state.sampler.sample(i * 0.5, t * 0.5);
+        const a = state.sampler.sample(i * 0.5, t * 0.8);
         ctx.fillStyle = palette.ink;
         ctx.globalAlpha = a;
         ctx.fillRect(startX + i * (cw + gap), h * 0.22, cw, h * 0.56);
@@ -1123,7 +1123,7 @@ function draw() {
   const n = 14, gap = 6;
   const cw = (width * 0.86 - gap * (n - 1)) / n, sx = width * 0.07;
   for (let i = 0; i < n; i++) {
-    fill(17, 18, 19, s.sample(i * 0.5, t * 0.5) * 255);
+    fill(17, 18, 19, s.sample(i * 0.5, t * 0.8) * 255);
     rect(sx + i * (cw + gap), height * 0.22, cw, height * 0.56);
   }
 }`)
@@ -1140,7 +1140,7 @@ function draw() {
     notes: "Combine wobble sine with a small dot to convey 'unread without urgency'.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "wobble sine", t: t * 0.5, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "wobble sine", t: t * 0.8, amplitude: 1 }));
       const cx = w * 0.32;
       const cy = h * 0.5;
       ctx.fillStyle = palette.peach;
@@ -1163,7 +1163,7 @@ function setup() { createCanvas(620, 320); textFont('Oswald'); }
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'wobble sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'wobble sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
   const cx = width * 0.32, cy = height / 2;
   noStroke(); fill(246, 167, 150, 100); circle(cx, cy, 76 + v * 44);
   fill(246, 167, 150); circle(cx, cy, 48);
@@ -1185,7 +1185,7 @@ function draw() {
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
       if (!state.sampler) {
-        state.sampler = Waves.createSampler({ shift: true, shiftInterval: 3, shiftDuration: 1.2, group: "gentle" });
+        state.sampler = Waves.createSampler({ shift: true, shiftInterval: 2, shiftDuration: 0.8, group: "gentle" });
       }
       state.sampler.sample(0, t);
       const s = state.sampler;
@@ -1212,7 +1212,7 @@ function draw() {
 let s;
 function setup() {
   createCanvas(620, 320); textFont('Oswald');
-  s = Waves.createSampler({ shift: true, shiftInterval: 3, shiftDuration: 1.2, group: 'gentle' });
+  s = Waves.createSampler({ shift: true, shiftInterval: 2, shiftDuration: 0.8, group: 'gentle' });
 }
 function draw() {
   background(255);
@@ -1242,8 +1242,8 @@ function draw() {
       if (!state.sampler) {
         state.sampler = Waves.createSampler({
           shift: true,
-          shiftInterval: 3,
-          shiftDuration: 1.2,
+          shiftInterval: 2.5,
+          shiftDuration: 1,
           group: "gentle"
         });
       }
@@ -1296,7 +1296,7 @@ const modes = [
 function setup() {
   createCanvas(620, 320);
   textFont('Oswald');
-  s = Waves.createSampler({ shift: true, shiftInterval: 3, shiftDuration: 1.2, group: 'gentle' });
+  s = Waves.createSampler({ shift: true, shiftInterval: 2.5, shiftDuration: 1, group: 'gentle' });
 }
 
 function draw() {
@@ -1386,7 +1386,7 @@ function drawGrid(t, s) {
       const startX = w * 0.06;
       const y = h * 0.5;
       for (let i = 0; i < dashes; i++) {
-        const v = state.sampler.sample(i * 0.4, t * 0.5);
+        const v = state.sampler.sample(i * 0.4, t * 0.8);
         const lift = v > 0 ? -10 : 10;
         ctx.fillStyle = v > 0 ? palette.ink : palette.muted;
         ctx.fillRect(startX + i * dx, y + lift - 2, dx * 0.7, 4);
@@ -1403,7 +1403,7 @@ function draw() {
   const t = millis() / 1000, n = 24;
   const dx = width * 0.88 / n, sx = width * 0.06, y = height / 2;
   for (let i = 0; i < n; i++) {
-    const v = s.sample(i * 0.4, t * 0.5);
+    const v = s.sample(i * 0.4, t * 0.8);
     fill(v > 0 ? 0 : 130);
     rect(sx + i * dx, y + (v > 0 ? -12 : 8), dx * 0.7, 4);
   }
@@ -1430,7 +1430,7 @@ function draw() {
           speed: 0.5
         });
       }
-      const cells = state.grid.sample(t * 0.5);
+      const cells = state.grid.sample(t * 0.8);
       const cw = w / state.cols;
       const ch = h / state.rows;
       for (let r = 0; r < state.rows; r++) {
@@ -1453,7 +1453,7 @@ function setup() {
 }
 function draw() {
   background(244);
-  const cells = g.sample(millis() / 1000 * 0.5);
+  const cells = g.sample(millis() / 1000 * 0.8);
   const cw = width / COLS, ch = height / ROWS;
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
@@ -1482,8 +1482,8 @@ function draw() {
       }
       const trails = 7;
       for (let i = 0; i < trails; i++) {
-        const tx = state.sampler.sample(i * 0.3, t * 0.5);
-        const ty = state.sampler.sample(i * 0.3 + 12, t * 0.4);
+        const tx = state.sampler.sample(i * 0.3, t * 0.8);
+        const ty = state.sampler.sample(i * 0.3 + 12, t * 0.6);
         const x = w * 0.5 + tx * w * 0.32;
         const y = h * 0.5 + ty * h * 0.28;
         const r = lerp(4, 16, i / (trails - 1));
@@ -1503,8 +1503,8 @@ function draw() {
   background(255);
   const t = millis() / 1000, n = 7;
   for (let i = 0; i < n; i++) {
-    const x = width / 2 + s.sample(i * 0.3, t * 0.5) * width * 0.32;
-    const y = height / 2 + s.sample(i * 0.3 + 12, t * 0.4) * height * 0.28;
+    const x = width / 2 + s.sample(i * 0.3, t * 0.8) * width * 0.32;
+    const y = height / 2 + s.sample(i * 0.3 + 12, t * 0.6) * height * 0.28;
     fill(17, 18, 19, lerp(60, 255, i / (n - 1)));
     circle(x, y, lerp(8, 32, i / (n - 1)));
   }
@@ -1522,7 +1522,7 @@ function draw() {
     notes: "A simple, expressive way to show a value's polarity at a glance.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "fade out", t: t * 0.5, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "fade out", t: t * 0.8, amplitude: 1 }));
       const splitX = w * 0.1 + w * 0.8 * v;
       ctx.fillStyle = palette.ink;
       ctx.fillRect(w * 0.1, h * 0.2, w * 0.8, h * 0.6);
@@ -1537,7 +1537,7 @@ function setup() { createCanvas(620, 320); }
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'fade out', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'fade out', t: t * 0.8, amplitude: 1 }) + 1) / 2;
   const sx = width * 0.1 + width * 0.8 * v;
   noStroke(); fill(0); rect(width * 0.1, height * 0.2, width * 0.8, height * 0.6);
   fill('#f3e679'); rect(width * 0.1, height * 0.2, sx - width * 0.1, height * 0.6);
@@ -1555,7 +1555,7 @@ function draw() {
     notes: "wobble sine is amplitude-modulated: the pulse waxes and wanes irregularly. A plain sine would feel like a heartbeat monitor.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "wobble sine", t: t * 0.5, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "wobble sine", t: t * 0.8, amplitude: 1 }));
       const bx = w * 0.22;
       const by = h * 0.38;
       const bw = w * 0.56;
@@ -1578,7 +1578,7 @@ function setup() { createCanvas(620, 320); textFont('Oswald'); }
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'wobble sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'wobble sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
   const bx = width * 0.22, by = height * 0.38, bw = width * 0.56, bh = height * 0.24;
   noStroke(); fill(199, 232, 156, 75 + v * 128);
   rect(bx - 10, by - 10, bw + 20, bh + 20);
@@ -1600,7 +1600,7 @@ function draw() {
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       const modes = ["LIVE", "DRAFT", "ARCHIVE"];
-      const v = norm(Waves.wave(0, { wave: "stepped sine", t: t * 0.5, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "stepped sine", t: t * 0.8, amplitude: 1 }));
       const active = clamp(Math.floor(v * modes.length), 0, modes.length - 1);
       const total = w * 0.84;
       const startX = w * 0.08;
@@ -1628,7 +1628,7 @@ function setup() { createCanvas(620, 320); textFont('Oswald'); }
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
   const active = constrain(floor(v * modes.length), 0, modes.length - 1);
   const total = width * 0.84, sx = width * 0.08, sw = total / modes.length;
   noFill(); stroke(0); strokeWeight(1.5);
@@ -1660,7 +1660,7 @@ function draw() {
         ctx.fillStyle = color;
         ctx.fillRect(0, i * bandH, w, bandH);
       });
-      const v = norm(Waves.wave(0, { wave: "round linked sine", t: t * 0.3, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "round linked sine", t: t * 0.5, amplitude: 1 }));
       const r = lerp(20, Math.min(w, h) * 0.55, v);
       ctx.save();
       ctx.globalCompositeOperation = "destination-in";
@@ -1683,7 +1683,7 @@ function setup() {
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'round linked sine', t: t * 0.3, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'round linked sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
   const r = lerp(20, min(width, height) * 0.55, v);
   layer.clear();
   const bands = ['#f6a796', '#f9b7c4', '#b8d2ff', '#f3e679'];
@@ -1712,7 +1712,7 @@ function draw() {
     notes: "Use along the top edge of an active card to indicate freshness or focus.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "zig-zag sine", t: t * 0.5, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "zig-zag sine", t: t * 0.8, amplitude: 1 }));
       const x = w * 0.08 + w * 0.84 * v;
       const cardX = w * 0.1;
       const cardW = w * 0.8;
@@ -1731,7 +1731,7 @@ function setup() { createCanvas(620, 320); }
 function draw() {
   background(255);
   const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'zig-zag sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
+  const v = (Waves.wave(0, { wave: 'zig-zag sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
   const x = width * 0.08 + width * 0.84 * v;
   fill(244); stroke(0); strokeWeight(1.5);
   rect(width * 0.1, height * 0.2, width * 0.8, height * 0.6);
@@ -1766,7 +1766,7 @@ function draw() {
       let x = (w - total) * 0.5;
       const baseY = h * 0.55;
       letters.forEach((l, i) => {
-        const v = state.sampler.sample(i * 0.25, t * 0.5);
+        const v = state.sampler.sample(i * 0.25, t * 0.8);
         ctx.fillStyle = palette.ink;
         ctx.fillText(l, x, baseY + v * 14);
         x += widths[i] + gap;
@@ -1788,7 +1788,7 @@ function draw() {
   let x = (width - total) / 2;
   fill(0); textAlign(LEFT, CENTER);
   for (let i = 0; i < txt.length; i++) {
-    text(txt[i], x, height * 0.55 + s.sample(i * 0.25, t * 0.5) * 14);
+    text(txt[i], x, height * 0.55 + s.sample(i * 0.25, t * 0.8) * 14);
     x += widths[i] + 2;
   }
 }`)
@@ -1814,7 +1814,7 @@ function draw() {
           speed: 0.5
         });
       }
-      const cells = state.grid.sample(t * 0.5);
+      const cells = state.grid.sample(t * 0.8);
       const gap = 4;
       const cw = (w * 0.86 - gap * (state.cols - 1)) / state.cols;
       const ch = (h * 0.7 - gap * (state.rows - 1)) / state.rows;
@@ -1846,7 +1846,7 @@ function setup() {
 }
 function draw() {
   background(255);
-  const cells = g.sample(millis() / 1000 * 0.5);
+  const cells = g.sample(millis() / 1000 * 0.8);
   const gap = 4;
   const cw = (width * 0.86 - gap * (COLS - 1)) / COLS;
   const ch = (height * 0.7 - gap * (ROWS - 1)) / ROWS;
@@ -1879,7 +1879,7 @@ function draw() {
       ctx.lineWidth = 1.6;
       ctx.beginPath();
       for (let x = 0; x <= w; x += step) {
-        const v = state.gentle.sample(x * 0.012, t * 0.5);
+        const v = state.gentle.sample(x * 0.012, t * 0.8);
         const y = h * 0.28 + v * halfH * 0.35;
         if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
@@ -1887,7 +1887,7 @@ function draw() {
       ctx.strokeStyle = palette.peach;
       ctx.beginPath();
       for (let x = 0; x <= w; x += step) {
-        const v = state.harsh.sample(x * 0.012, t * 0.5);
+        const v = state.harsh.sample(x * 0.012, t * 0.8);
         const y = h * 0.72 + v * halfH * 0.35;
         if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
@@ -1907,11 +1907,11 @@ function draw() {
   const t = millis() / 1000;
   strokeWeight(1.6); stroke(0);
   beginShape();
-  for (let x = 0; x <= width; x += 4) vertex(x, height * 0.28 + gentle.sample(x * 0.012, t * 0.5) * height * 0.15);
+  for (let x = 0; x <= width; x += 4) vertex(x, height * 0.28 + gentle.sample(x * 0.012, t * 0.8) * height * 0.15);
   endShape();
   stroke('#f6a796');
   beginShape();
-  for (let x = 0; x <= width; x += 4) vertex(x, height * 0.72 + harsh.sample(x * 0.012, t * 0.5) * height * 0.15);
+  for (let x = 0; x <= width; x += 4) vertex(x, height * 0.72 + harsh.sample(x * 0.012, t * 0.8) * height * 0.15);
   endShape();
 }`)
   },
