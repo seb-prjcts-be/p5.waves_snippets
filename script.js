@@ -2044,7 +2044,7 @@ function draw() {
 function sketchTemplate(body) {
   return `// p5.js 2.x + p5.waves v3.2.6
 // CDN:
-// <script src="https://cdn.jsdelivr.net/npm/p5@2.2.2/lib/p5.js"></script>
+// <script src="https://cdn.jsdelivr.net/npm/p5@2.2.2/lib/p5.min.js"></script>
 // <script src="https://cdn.jsdelivr.net/gh/seb-prjcts-be/p5.waves@v3.2.6/p5.waves.min.js"></script>
 ${body.trim()}
 `;
