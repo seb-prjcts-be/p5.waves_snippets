@@ -1,4 +1,4 @@
-/* p5.waves visual vocabulary: uses real Waves.wave / createSampler / createGrid (v3.2.6) */
+/* p5.waves visual vocabulary: uses real Waves.wave / createSampler (v3.2.6) */
 
 const palette = {
   ink: "#111213",
@@ -17,8 +17,7 @@ const palette = {
 
 const PRIMITIVES = {
   wave: "Waves.wave()",
-  sampler: "Waves.createSampler()",
-  grid: "Waves.createGrid()"
+  sampler: "Waves.createSampler()"
 };
 
 const ACCENT = [palette.pink, palette.peach, palette.sky, palette.mint, palette.lemon, palette.lilac];
@@ -73,10 +72,10 @@ function bootHero() {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   const bands = [
-    { sampler: Waves.createSampler({ shift: true, shiftInterval: 4, shiftDuration: 1.8, group: "gentle", range: [-1, 1] }), color: palette.peach, alpha: 0.55, freq: 0.0035, speed: 0.32, baseY: 0.32, amp: 0.18 },
-    { sampler: Waves.createSampler({ shift: true, shiftInterval: 3, shiftDuration: 1.5, group: "gentle", range: [-1, 1] }), color: palette.pink,  alpha: 0.55, freq: 0.0045, speed: 0.38, baseY: 0.48, amp: 0.22 },
-    { sampler: Waves.createSampler({ shift: true, shiftInterval: 5, shiftDuration: 2.0, group: "gentle", range: [-1, 1] }), color: palette.sky,   alpha: 0.6,  freq: 0.003,  speed: 0.28, baseY: 0.66, amp: 0.2  },
-    { sampler: Waves.createSampler({ shift: true, shiftInterval: 6, shiftDuration: 2.2, group: "gentle", range: [-1, 1] }), color: palette.lemon, alpha: 0.5,  freq: 0.005,  speed: 0.42, baseY: 0.82, amp: 0.14 }
+    { sampler: Waves.createSampler({ shift: true, shiftInterval: 4, shiftDuration: 1.8, group: "gentle", range: [-1, 1] }), color: palette.peach, alpha: 0.55, freq: 0.0035, speed: 0.45, baseY: 0.32, amp: 0.18 },
+    { sampler: Waves.createSampler({ shift: true, shiftInterval: 3, shiftDuration: 1.5, group: "gentle", range: [-1, 1] }), color: palette.pink,  alpha: 0.55, freq: 0.0045, speed: 0.52, baseY: 0.48, amp: 0.22 },
+    { sampler: Waves.createSampler({ shift: true, shiftInterval: 5, shiftDuration: 2.0, group: "gentle", range: [-1, 1] }), color: palette.sky,   alpha: 0.6,  freq: 0.003,  speed: 0.4,  baseY: 0.66, amp: 0.2  },
+    { sampler: Waves.createSampler({ shift: true, shiftInterval: 6, shiftDuration: 2.2, group: "gentle", range: [-1, 1] }), color: palette.lemon, alpha: 0.5,  freq: 0.005,  speed: 0.58, baseY: 0.82, amp: 0.14 }
   ];
 
   function frame(time) {
@@ -88,7 +87,7 @@ function bootHero() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, rect.width, rect.height);
 
-    const t = time * 0.001;
+    const t = time / 600;
     bands.forEach(band => {
       const baseY = rect.height * band.baseY;
       const amp = rect.height * band.amp;
@@ -200,70 +199,136 @@ const SWITCHER_MODES = [
 const modules = [
   {
     id: "drifting-label",
-    name: "Drifting Label",
+    name: "Arc Value Label",
     category: "motion",
-    role: "meta sine drifts the label unevenly: amplitude varies over time, so the offset never quite repeats.",
-    tags: ["label", "position", "meta sine"],
-    primitive: PRIMITIVES.wave,
+    role: "A shifting sampler maps wave values onto a U-shaped annotation path between negative and positive states.",
+    tags: ["label", "arc", "shift"],
+    primitive: PRIMITIVES.sampler,
     reuse: "captions",
-    notes: "meta sine is a sine whose amplitude is itself modulated: the label drifts and breathes at the same time. Plain sin() would feel mechanical.",
-    draw(ctx, w, h, t) {
+    notes: "The path stays fixed, but the travel dialect changes with waveName and targetName. Different formulas hang, snap, or glide across the same U.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
-      gridGuide(ctx, w, h);
-      const v = Waves.wave(0, { wave: "meta sine", t: t * 1.0, amplitude: 1 });
-      const baseX = w * 0.5;
-      const y = h * 0.55;
-      const x = baseX + v * w * 0.2;
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({
+          shift: true,
+          shiftInterval: 2.6,
+          shiftDuration: 0.9,
+          group: "all",
+          range: [-1, 1]
+        });
+      }
+      const s = state.sampler;
+      const v = s.sample(0, t * 1.2);
+      const cx = w * 0.5;
+      const cy = h * 0.22;
+      const rx = w * 0.32;
+      const ry = h * 0.46;
+      const progress = norm(v);
+      const angle = Math.PI - progress * Math.PI;
+      const x = cx + Math.cos(angle) * rx;
+      const y = cy + Math.sin(angle) * ry;
+
+      ctx.fillStyle = palette.sky;
+      ctx.fillRect(0, 0, cx, h);
+      ctx.fillStyle = palette.lemon;
+      ctx.fillRect(cx, 0, cx, h);
+      ctx.fillStyle = palette.panel;
+      ctx.fillRect(cx - 1, 0, 2, h);
+
       ctx.strokeStyle = palette.ink;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(baseX, y + 22); ctx.lineTo(x, y + 22); ctx.stroke();
-      ctx.fillStyle = palette.peach;
-      ctx.fillRect(baseX - 3, y - 32, 6, 64);
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let i = 0; i <= 96; i++) {
+        const a = Math.PI - (i / 96) * Math.PI;
+        const px = cx + Math.cos(a) * rx;
+        const py = cy + Math.sin(a) * ry;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+
+      [[-1, "< 0"], [0, "0"], [1, "> 0"]].forEach(([value, text]) => {
+        const a = Math.PI - norm(value) * Math.PI;
+        const px = cx + Math.cos(a) * rx;
+        const py = cy + Math.sin(a) * ry;
+        ctx.fillStyle = palette.ink;
+        ctx.beginPath(); ctx.arc(px, py, value === 0 ? 4 : 6, 0, Math.PI * 2); ctx.fill();
+        label(ctx, text, px - 10, py + 22, palette.ink, 11);
+      });
+
+      ctx.fillStyle = s.shifting ? palette.peach : palette.ink;
+      ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = palette.panel;
       ctx.strokeStyle = palette.ink;
-      ctx.lineWidth = 1.5;
-      ctx.fillRect(x - 58, y - 18, 116, 36);
-      ctx.strokeRect(x - 58, y - 18, 116, 36);
-      label(ctx, "sample point", x - 46, y + 1, palette.ink, 13);
+      ctx.lineWidth = 2;
+      const labelX = clamp(x - 62, 8, w - 132);
+      const labelY = clamp(y - 46, 8, h - 54);
+      ctx.fillRect(labelX, labelY, 124, 34);
+      ctx.strokeRect(labelX, labelY, 124, 34);
+      label(ctx, "x " + v.toFixed(2), labelX + 14, labelY + 17, palette.ink, 14);
+      label(ctx, s.shifting ? `${s.waveName} -> ${s.targetName}` : s.waveName, 14, h - 18, palette.ink, 11);
     },
     sketch: sketchTemplate(`
-let baseX, y;
+let s;
 function setup() {
   createCanvas(620, 320);
-  textFont('sans-serif');
-  baseX = width / 2;
-  y = height / 2;
+  textFont('Oswald');
+  s = Waves.createSampler({ shift: true, shiftInterval: 2.6, shiftDuration: 0.9, group: 'all', range: [-1, 1] });
 }
 function draw() {
-  background(244);
-  const t = millis() / 1000;
-  const v = Waves.wave(0, { wave: 'meta sine', t: t * 1.0, amplitude: 1 });
-  const x = baseX + v * width * 0.2;
-  stroke(0); strokeWeight(1.5);
-  line(baseX, y + 22, x, y + 22);
-  noStroke(); fill(246, 167, 150);
-  rect(baseX - 3, y - 32, 6, 64);
-  fill(255); stroke(0);
-  rect(x - 58, y - 18, 116, 36);
-  noStroke(); fill(0);
-  textSize(13); textAlign(LEFT, CENTER);
-  text('sample point', x - 46, y);
+  const t = millis() / 600;
+  const v = s.sample(0, t * 1.2);
+  const cx = width / 2, cy = height * 0.22, rx = width * 0.32, ry = height * 0.46;
+  const a = PI - ((v + 1) / 2) * PI;
+  const x = cx + cos(a) * rx;
+  const y = cy + sin(a) * ry;
+  noStroke(); fill('#b8d2ff'); rect(0, 0, cx, height);
+  fill('#f3e679'); rect(cx, 0, cx, height);
+  stroke(0); strokeWeight(3); noFill();
+  beginShape();
+  for (let i = 0; i <= 96; i++) {
+    const aa = PI - i / 96 * PI;
+    vertex(cx + cos(aa) * rx, cy + sin(aa) * ry);
+  }
+  endShape();
+  noStroke(); fill(0); textSize(11);
+  text('< 0', cx - rx - 10, cy + 22);
+  text('0', cx - 4, cy + ry + 22);
+  text('> 0', cx + rx - 10, cy + 22);
+  fill(s.shifting ? '#f6a796' : 0); circle(x, y, 20);
+  const lx = constrain(x - 62, 8, width - 132);
+  const ly = constrain(y - 46, 8, height - 54);
+  fill(255); stroke(0); strokeWeight(2); rect(lx, ly, 124, 34);
+  noStroke(); fill(0); textSize(14); text('x ' + nf(v, 1, 2), lx + 14, ly + 21);
+  textSize(11); text(s.shifting ? s.waveName + ' -> ' + s.targetName : s.waveName, 14, height - 18);
 }`)
   },
 
   {
     id: "breathing-title",
-    name: "Breathing Title",
+    name: "Title Shift Gate",
     category: "type",
-    role: "The wave opens and closes letter spacing without changing the words.",
-    tags: ["spacing", "headline"],
-    primitive: PRIMITIVES.wave,
+    role: "A shifting sampler changes the title's spacing, bend, and active voice while exposing the current formula.",
+    tags: ["shift", "spacing", "headline"],
+    primitive: PRIMITIVES.sampler,
     reuse: "section titles",
-    notes: "A compact way to animate hierarchy in titles, section markers, and display typography.",
-    draw(ctx, w, h, t) {
+    notes: "This is not a sine breathing title: the wave family rotates underneath it, so the same word keeps changing graphic behaviour.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "bumpy sine", t: t * 0.8, amplitude: 1 }));
-      const tracking = lerp(2, 22, v);
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({
+          shift: true,
+          shiftInterval: 2.2,
+          shiftDuration: 0.8,
+          group: "gentle",
+          range: [-1, 1]
+        });
+      }
+      const s = state.sampler;
+      s.sample(0, t);
+      const tracking = lerp(3, 24, s.mix || norm(s.sample(0.7, t)));
       const letters = "SIGNAL".split("");
       const fontSize = Math.min(64, w * 0.13);
       ctx.font = `600 ${fontSize}px Oswald, sans-serif`;
@@ -273,20 +338,26 @@ function draw() {
       let x = (w - total) * 0.5;
       const y = h * 0.5;
       letters.forEach((l, i) => {
+        const bend = s.sample(i * 0.33, t) * 20;
         ctx.fillStyle = palette.ink;
-        ctx.fillText(l, x, y);
+        ctx.fillText(l, x, y + bend);
         x += widths[i] + tracking;
       });
-      ctx.fillStyle = palette.pink;
-      ctx.fillRect(w * 0.16, y + fontSize * 0.65, w * 0.68 * v, 6);
+      ctx.fillStyle = s.shifting ? palette.peach : palette.pink;
+      ctx.fillRect(w * 0.16, y + fontSize * 0.7, w * 0.68 * (s.shifting ? s.mix : 1), 6);
+      label(ctx, s.shifting ? `${s.waveName} -> ${s.targetName}` : s.waveName, w * 0.08, h * 0.18, palette.muted, 11);
     },
     sketch: sketchTemplate(`
-function setup() { createCanvas(620, 320); textFont('Oswald'); }
+let s;
+function setup() {
+  createCanvas(620, 320); textFont('Oswald');
+  s = Waves.createSampler({ shift: true, shiftInterval: 2.2, shiftDuration: 0.8, group: 'gentle', range: [-1, 1] });
+}
 function draw() {
   background(255);
-  const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'bumpy sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
-  const tracking = map(v, 0, 1, 2, 22);
+  const t = millis() / 600;
+  s.sample(0, t);
+  const tracking = lerp(3, 24, s.mix || (s.sample(0.7, t) + 1) / 2);
   const letters = 'SIGNAL'.split('');
   const fs = min(64, width * 0.13);
   textSize(fs); textAlign(LEFT, CENTER); fill(0);
@@ -294,70 +365,75 @@ function draw() {
   const total = widths.reduce((a, b) => a + b, 0) + tracking * (letters.length - 1);
   let x = (width - total) / 2;
   for (let i = 0; i < letters.length; i++) {
-    text(letters[i], x, height / 2);
+    text(letters[i], x, height / 2 + s.sample(i * 0.33, t) * 20);
     x += widths[i] + tracking;
   }
-  noStroke(); fill(249, 183, 196);
-  rect(width * 0.16, height / 2 + fs * 0.65, width * 0.68 * v, 6);
+  noStroke(); fill(s.shifting ? '#f6a796' : '#f9b7c4');
+  rect(width * 0.16, height / 2 + fs * 0.7, width * 0.68 * (s.shifting ? s.mix : 1), 6);
+  fill(120); textSize(11); textAlign(LEFT, BASELINE);
+  text(s.shifting ? s.waveName + ' -> ' + s.targetName : s.waveName, width * 0.08, height * 0.18);
 }`)
   },
 
   {
     id: "interference-grid",
-    name: "Interference Grid",
+    name: "Family Interference",
     category: "grid",
-    role: "createGrid sums a row-wave and a col-wave: same frequency, different phase, interference.",
-    tags: ["createGrid", "moire"],
-    primitive: PRIMITIVES.grid,
+    role: "A gentle row sampler and harsh column sampler shift independently; the grid is the collision between two wave families.",
+    tags: ["sampler", "group", "shift", "moire"],
+    primitive: PRIMITIVES.sampler,
     reuse: "matrix backgrounds",
-    notes: "createGrid does the heavy lifting: one call fills a typed array of (waveRow + waveCol) values.",
-    state: { grid: null, cols: 28, rows: 14, t: 0 },
+    notes: "This is not two sine waves. group selection and live waveName make the pattern a comparison between wave vocabularies.",
+    state: { rowS: null, colS: null, cols: 28, rows: 14 },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.paper);
-      if (!state.grid) {
-        state.grid = Waves.createGrid(state.cols, state.rows, {
-          waveRow: "classic sine",
-          waveCol: "classic sine",
-          range: [0, 1],
-          speed: 0.4
-        });
+      if (!state.rowS) {
+        state.rowS = Waves.createSampler({ shift: true, shiftInterval: 3.2, shiftDuration: 1, group: "gentle", range: [-1, 1] });
+        state.colS = Waves.createSampler({ shift: true, shiftInterval: 2.4, shiftDuration: 0.8, group: "harsh", range: [-1, 1] });
       }
-      const cells = state.grid.sample(t * 0.8);
+      const tt = t * 0.4;
+      const rowV = new Array(state.rows);
+      const colV = new Array(state.cols);
+      for (let r = 0; r < state.rows; r++) rowV[r] = state.rowS.sample(r, tt);
+      for (let c = 0; c < state.cols; c++) colV[c] = state.colS.sample(c, tt);
       const cw = w / state.cols;
       const ch = h / state.rows;
       for (let r = 0; r < state.rows; r++) {
         for (let c = 0; c < state.cols; c++) {
-          const v = cells[r * state.cols + c];
+          const v = (rowV[r] + colV[c] + 2) / 4;
           const a = Math.pow(v, 1.5);
           ctx.fillStyle = `rgba(17, 18, 19, ${a})`;
           ctx.fillRect(c * cw, r * ch, cw + 0.5, ch + 0.5);
         }
       }
+      label(ctx, "ROW  " + state.rowS.waveName.toUpperCase(), 12, 16, palette.paper, 10);
+      label(ctx, "COL  " + state.colS.waveName.toUpperCase(), 12, h - 16, palette.paper, 10);
     },
     sketch: sketchTemplate(`
-let g;
+let rowS, colS;
 const COLS = 28, ROWS = 14;
 function setup() {
   createCanvas(620, 320);
   noStroke();
-  g = Waves.createGrid(COLS, ROWS, {
-    waveRow: 'classic sine',
-    waveCol: 'classic sine',
-    range: [0, 1],
-    speed: 0.4
-  });
+  rowS = Waves.createSampler({ shift: true, shiftInterval: 3.2, shiftDuration: 1, group: 'gentle', range: [-1, 1] });
+  colS = Waves.createSampler({ shift: true, shiftInterval: 2.4, shiftDuration: 0.8, group: 'harsh', range: [-1, 1] });
 }
 function draw() {
   background(244);
-  const cells = g.sample(millis() / 1000 * 0.8);
+  const tt = millis() / 600 * 0.4;
+  const rowV = []; for (let r = 0; r < ROWS; r++) rowV.push(rowS.sample(r, tt));
+  const colV = []; for (let c = 0; c < COLS; c++) colV.push(colS.sample(c, tt));
   const cw = width / COLS, ch = height / ROWS;
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      const v = pow(cells[r * COLS + c], 1.5);
+      const v = pow((rowV[r] + colV[c] + 2) / 4, 1.5);
       fill(17, 18, 19, v * 255);
       rect(c * cw, r * ch, cw + 0.5, ch + 0.5);
     }
   }
+  fill(244); textSize(10);
+  text('ROW ' + rowS.waveName.toUpperCase(), 12, 16);
+  text('COL ' + colS.waveName.toUpperCase(), 12, height - 12);
 }`)
   },
 
@@ -365,56 +441,54 @@ function draw() {
     id: "threshold-field",
     name: "Threshold Field",
     category: "grid",
-    role: "A binary grid: cells flip on when waveRow + waveCol crosses the threshold.",
-    tags: ["createGrid", "threshold", "binary"],
-    primitive: PRIMITIVES.grid,
+    role: "A binary grid: cells flip on when row-wave + col-wave crosses zero.",
+    tags: ["sampler", "threshold", "binary"],
+    primitive: PRIMITIVES.sampler,
     reuse: "matrix backgrounds",
-    notes: "createGrid with threshold returns a Uint8Array of 0/1: perfect for monochrome patterns.",
-    state: { grid: null, cols: 22, rows: 10, t: 0 },
+    notes: "Sum two samplers per cell, threshold the result: monochrome pattern that breathes.",
+    state: { rowS: null, colS: null, cols: 22, rows: 10 },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.paper);
-      if (!state.grid) {
-        state.grid = Waves.createGrid(state.cols, state.rows, {
-          waveRow: "triangle",
-          waveCol: "classic sine",
-          threshold: 0,
-          speed: 0.5
-        });
+      if (!state.rowS) {
+        state.rowS = Waves.createSampler({ wave: "triangle", range: [-1, 1] });
+        state.colS = Waves.createSampler({ wave: "classic sine", range: [-1, 1] });
       }
-      const cells = state.grid.sample(t * 1.0);
+      const tt = t * 0.5;
+      const rowV = new Array(state.rows);
+      const colV = new Array(state.cols);
+      for (let r = 0; r < state.rows; r++) rowV[r] = state.rowS.sample(r, tt);
+      for (let c = 0; c < state.cols; c++) colV[c] = state.colS.sample(c, tt);
       const gap = 4;
       const cw = (w - gap * (state.cols + 1)) / state.cols;
       const ch = (h - gap * (state.rows + 1)) / state.rows;
       for (let r = 0; r < state.rows; r++) {
         for (let c = 0; c < state.cols; c++) {
-          const v = cells[r * state.cols + c];
-          ctx.fillStyle = v === 1 ? palette.ink : "#d2d6d9";
+          const on = (rowV[r] + colV[c]) >= 0;
+          ctx.fillStyle = on ? palette.ink : "#d2d6d9";
           ctx.fillRect(gap + c * (cw + gap), gap + r * (ch + gap), cw, ch);
         }
       }
     },
     sketch: sketchTemplate(`
-let g;
+let rowS, colS;
 const COLS = 22, ROWS = 10;
 function setup() {
   createCanvas(620, 320);
   noStroke();
-  g = Waves.createGrid(COLS, ROWS, {
-    waveRow: 'triangle',
-    waveCol: 'classic sine',
-    threshold: 0,
-    speed: 0.5
-  });
+  rowS = Waves.createSampler({ wave: 'triangle', range: [-1, 1] });
+  colS = Waves.createSampler({ wave: 'classic sine', range: [-1, 1] });
 }
 function draw() {
   background(244);
-  const cells = g.sample(millis() / 1000 * 1.0);
+  const tt = millis() / 600 * 0.5;
+  const rowV = []; for (let r = 0; r < ROWS; r++) rowV.push(rowS.sample(r, tt));
+  const colV = []; for (let c = 0; c < COLS; c++) colV.push(colS.sample(c, tt));
   const gap = 4;
   const cw = (width - gap * (COLS + 1)) / COLS;
   const ch = (height - gap * (ROWS + 1)) / ROWS;
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      fill(cells[r * COLS + c] === 1 ? 0 : 210);
+      fill(rowV[r] + colV[c] >= 0 ? 0 : 210);
       rect(gap + c * (cw + gap), gap + r * (ch + gap), cw, ch);
     }
   }
@@ -433,7 +507,7 @@ function draw() {
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       const swatches = ACCENT;
-      const v = norm(Waves.wave(0, { wave: "stepped sine", t: t * 0.8, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "stepped sine", t: t * 1.0, amplitude: 1 }));
       const active = clamp(Math.floor(v * swatches.length), 0, swatches.length - 1);
       const sw = w / swatches.length;
       swatches.forEach((c, i) => {
@@ -454,8 +528,8 @@ const swatches = ['#f9b7c4', '#f6a796', '#b8d2ff', '#c7e89c', '#f3e679', '#c8c3f
 function setup() { createCanvas(620, 320); noStroke(); }
 function draw() {
   background(255);
-  const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
+  const t = millis() / 600;
+  const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 1.0, amplitude: 1 }) + 1) / 2;
   const active = constrain(floor(v * swatches.length), 0, swatches.length - 1);
   const sw = width / swatches.length;
   for (let i = 0; i < swatches.length; i++) {
@@ -473,43 +547,67 @@ function draw() {
 
   {
     id: "pressure-hatch",
-    name: "Pressure Hatch",
+    name: "Hatch Gait Switch",
     category: "texture",
-    role: "Wave amplitude becomes spacing and bend in a reusable hatch texture.",
-    tags: ["hatch", "print"],
-    primitive: PRIMITIVES.wave,
+    role: "A shifting sampler changes the hatch gait itself: soft waves become stepped, jagged, or wild line families.",
+    tags: ["hatch", "shift", "waveName"],
+    primitive: PRIMITIVES.sampler,
     reuse: "print textures",
-    notes: "A small texture module that can become a mask, poster field, or exportable tile.",
-    draw(ctx, w, h, t) {
+    notes: "The line field does not just animate spacing. The underlying formula rotates, so the texture changes species while the drawing code stays fixed.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.paper);
-      const pressure = Waves.wave(0, { wave: "triangle", t: t * 0.8, amplitude: 1 });
-      const gap = lerp(20, 7, norm(pressure));
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({
+          shift: true,
+          shiftInterval: 2.6,
+          shiftDuration: 0.9,
+          group: "all",
+          range: [-1, 1]
+        });
+      }
+      const s = state.sampler;
+      s.sample(0, t);
+      const gap = 11;
       ctx.strokeStyle = palette.ink;
-      ctx.lineWidth = 1.3;
-      for (let x = -w; x < w * 2; x += gap) {
+      ctx.lineWidth = 1.2;
+      for (let x = -w * 0.2; x < w * 1.2; x += gap) {
         ctx.beginPath();
-        ctx.moveTo(x, -10);
-        ctx.quadraticCurveTo(x + pressure * 30, h * 0.5, x - pressure * 22, h + 10);
+        for (let y = -10; y <= h + 10; y += 8) {
+          const v = s.sample(x * 0.05 + y * 0.03, t * 0.9);
+          const xx = x + v * 24;
+          if (y === -10) ctx.moveTo(xx, y);
+          else ctx.lineTo(xx, y);
+        }
         ctx.stroke();
       }
       ctx.fillStyle = palette.peach;
       ctx.globalAlpha = 0.9;
-      ctx.fillRect(w * 0.12, h * 0.2, w * 0.18, h * 0.6);
+      ctx.fillRect(w * 0.12, h * 0.2, w * 0.16 + (s.mix || 0) * w * 0.16, h * 0.6);
       ctx.globalAlpha = 1;
+      label(ctx, s.shifting ? `${s.waveName} -> ${s.targetName}` : s.waveName, 12, 18, palette.ink, 11);
     },
     sketch: sketchTemplate(`
-function setup() { createCanvas(620, 320); }
+let s;
+function setup() {
+  createCanvas(620, 320); textFont('Oswald');
+  s = Waves.createSampler({ shift: true, shiftInterval: 2.6, shiftDuration: 0.9, group: 'all', range: [-1, 1] });
+}
 function draw() {
   background(244);
-  const t = millis() / 1000;
-  const p = Waves.wave(0, { wave: 'triangle', t: t * 0.8, amplitude: 1 });
-  const gap = map(p, -1, 1, 20, 7);
-  stroke(0); strokeWeight(1.3); noFill();
-  for (let x = -width; x < width * 2; x += gap) {
-    bezier(x, -10, x + p * 30, height / 2, x + p * 30, height / 2, x - p * 22, height + 10);
+  const t = millis() / 600;
+  s.sample(0, t);
+  stroke(0); strokeWeight(1.2); noFill();
+  for (let x = -width * 0.2; x < width * 1.2; x += 11) {
+    beginShape();
+    for (let y = -10; y <= height + 10; y += 8) {
+      vertex(x + s.sample(x * 0.05 + y * 0.03, t * 0.9) * 24, y);
+    }
+    endShape();
   }
   noStroke(); fill(246, 167, 150, 230);
-  rect(width * 0.12, height * 0.2, width * 0.18, height * 0.6);
+  rect(width * 0.12, height * 0.2, width * (0.16 + (s.mix || 0) * 0.16), height * 0.6);
+  fill(0); textSize(11); text(s.shifting ? s.waveName + ' -> ' + s.targetName : s.waveName, 12, 20);
 }`)
   },
 
@@ -524,7 +622,7 @@ function draw() {
     notes: "fuzzy peak sine = sine with modulo-noise. The bar advances unevenly: far more honest than a clean ramp for indeterminate progress.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "fuzzy peak sine", t: t * 0.8, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "fuzzy peak sine", t: t * 1.2, amplitude: 1 }));
       const x = w * 0.14;
       const y = h * 0.48;
       const trackW = w * 0.72;
@@ -540,8 +638,8 @@ function draw() {
 function setup() { createCanvas(620, 320); }
 function draw() {
   background(255);
-  const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'fuzzy peak sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
+  const t = millis() / 600;
+  const v = (Waves.wave(0, { wave: 'fuzzy peak sine', t: t * 1.2, amplitude: 1 }) + 1) / 2;
   const x = width * 0.14, y = height * 0.48, trackW = width * 0.72;
   noFill(); stroke(0); strokeWeight(1.5);
   rect(x, y, trackW, 18);
@@ -601,7 +699,7 @@ function setup() {
 }
 function draw() {
   background(255);
-  const t = millis() / 1000;
+  const t = millis() / 600;
   s.sample(0, t);
   noFill(); stroke(0); rect(width * 0.08, height * 0.18, width * 0.84, height * 0.64);
   fill(120); noStroke(); textSize(11); text('ACTIVE', width * 0.12, height * 0.3);
@@ -653,7 +751,7 @@ function setup() {
 }
 function draw() {
   background(244);
-  const t = millis() / 1000;
+  const t = millis() / 600;
   s.sample(0, t);
   noStroke(); fill(0); textSize(46);
   text(s.waveName.toUpperCase(), width * 0.08, height * 0.5);
@@ -682,13 +780,13 @@ function draw() {
           amplitude: 1
         });
       }
-      const mix = (Math.sin(t * 0.8) + 1) / 2;
+      const mix = (Math.sin(t * 1.0) + 1) / 2;
       const amp = h * 0.32;
       ctx.strokeStyle = palette.ink;
       ctx.lineWidth = 2;
       ctx.beginPath();
       for (let x = 0; x <= w; x += 3) {
-        const y = state.sampler.sample(x * 0.02, t * 0.8, mix) * amp;
+        const y = state.sampler.sample(x * 0.02, t * 1.0, mix) * amp;
         if (x === 0) ctx.moveTo(x, h * 0.5 + y);
         else ctx.lineTo(x, h * 0.5 + y);
       }
@@ -703,13 +801,13 @@ function setup() {
 }
 function draw() {
   background(255);
-  const t = millis() / 1000;
-  const mix = (sin(t * 0.8) + 1) / 2;
+  const t = millis() / 600;
+  const mix = (sin(t * 1.0) + 1) / 2;
   const amp = height * 0.32;
   stroke(0); strokeWeight(2);
   beginShape();
   for (let x = 0; x <= width; x += 3) {
-    vertex(x, height / 2 + s.sample(x * 0.02, t * 0.8, mix) * amp);
+    vertex(x, height / 2 + s.sample(x * 0.02, t * 1.0, mix) * amp);
   }
   endShape();
   noStroke(); fill(0); textSize(12);
@@ -718,52 +816,54 @@ function draw() {
   },
 
   {
-    id: "adaptive-columns",
-    name: "Adaptive Columns",
+    id: "layout-squid",
+    name: "Layout Squid",
     category: "layout",
-    role: "Column widths breathe with a single wave value, keeping rhythm without redesigning.",
-    tags: ["columns", "spacing"],
+    role: "Four arms, four seeded waves: each column picks its own formula and tugs the layout independently.",
+    tags: ["seed", "columns", "polyrhythm"],
     primitive: PRIMITIVES.wave,
-    reuse: "page layouts",
-    notes: "Use to give a static layout a small living quality without losing its structure.",
+    reuse: "self-tuning grids",
+    notes: "Waves.wave(0, { seed: i }) hashes a different formula per arm. Four seeds = four kinds of motion in one composition. Plain sin() can only sing one tune at a time.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "classic sine", t: t * 0.8, amplitude: 1 }));
-      const ratios = [1 + v * 0.8, 1.4 - v * 0.5, 0.9 + v * 0.4, 1.2 - v * 0.3];
-      const total = ratios.reduce((a, b) => a + b, 0);
+      const seeds = [3, 11, 19, 27];
+      const cols = [palette.ink, palette.peach, palette.sky, palette.mint];
+      const tt = t * 1.0;
+      const widths = seeds.map(s => {
+        const v = norm(Waves.wave(0, { seed: s, t: tt, amplitude: 1 }));
+        return 0.6 + v * 1.2;
+      });
+      const total = widths.reduce((a, b) => a + b, 0);
       let x = w * 0.06;
       const top = h * 0.18;
       const colH = h * 0.64;
-      ratios.forEach((r, i) => {
-        const cw = (w * 0.88) * (r / total) - 8;
-        ctx.fillStyle = i === 0 ? palette.ink : palette.paper;
-        ctx.strokeStyle = palette.ink;
-        ctx.lineWidth = 1.2;
+      seeds.forEach((s, i) => {
+        const cw = (w * 0.88) * (widths[i] / total) - 8;
+        ctx.fillStyle = cols[i];
         ctx.fillRect(x, top, cw, colH);
-        ctx.strokeRect(x, top, cw, colH);
-        if (i === 0) {
-          ctx.fillStyle = palette.paper;
-          for (let k = 0; k < 4; k++) {
-            ctx.fillRect(x + 12, top + 16 + k * 16, cw - 24, 4);
-          }
-        }
+        ctx.fillStyle = palette.panel;
+        ctx.font = "600 11px Oswald, sans-serif";
+        ctx.textBaseline = "top";
+        ctx.fillText(`SEED ${s}`, x + 8, top + 8);
         x += cw + 8;
       });
     },
     sketch: sketchTemplate(`
-function setup() { createCanvas(620, 320); }
+const SEEDS = [3, 11, 19, 27];
+const COLS = ['#111', '#f6a796', '#b8d2ff', '#c7e89c'];
+function setup() { createCanvas(620, 320); textFont('Oswald'); }
 function draw() {
   background(255);
-  const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'classic sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
-  const ratios = [1 + v * 0.8, 1.4 - v * 0.5, 0.9 + v * 0.4, 1.2 - v * 0.3];
-  const total = ratios.reduce((a, b) => a + b, 0);
+  const t = millis() / 600;
+  const widths = SEEDS.map(s => 0.6 + ((Waves.wave(0, { seed: s, t: t * 1.0, amplitude: 1 }) + 1) / 2) * 1.2);
+  const total = widths.reduce((a, b) => a + b, 0);
   let x = width * 0.06;
   const top = height * 0.18, colH = height * 0.64;
-  for (let i = 0; i < ratios.length; i++) {
-    const cw = (width * 0.88) * (ratios[i] / total) - 8;
-    stroke(0); fill(i === 0 ? 0 : 244);
-    rect(x, top, cw, colH);
+  noStroke();
+  for (let i = 0; i < SEEDS.length; i++) {
+    const cw = (width * 0.88) * (widths[i] / total) - 8;
+    fill(COLS[i]); rect(x, top, cw, colH);
+    fill(255); textSize(11); text('SEED ' + SEEDS[i], x + 8, top + 18);
     x += cw + 8;
   }
 }`)
@@ -792,7 +892,7 @@ function draw() {
         ctx.fillStyle = palette.line;
         ctx.fillRect(ax - 1, h * 0.5 - 6, 2, 12);
       }
-      const v = norm(Waves.wave(0, { wave: "mountain peaks", t: t * 0.8, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "mountain peaks", t: t * 1.1, amplitude: 1 }));
       const tickX = w * 0.08 + w * 0.84 * v;
       ctx.fillStyle = palette.peach;
       ctx.fillRect(tickX - 3, h * 0.5 - 16, 6, 32);
@@ -804,8 +904,8 @@ function draw() {
 function setup() { createCanvas(620, 320); }
 function draw() {
   background(255);
-  const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'mountain peaks', t: t * 0.8, amplitude: 1 }) + 1) / 2;
+  const t = millis() / 600;
+  const v = (Waves.wave(0, { wave: 'mountain peaks', t: t * 1.1, amplitude: 1 }) + 1) / 2;
   stroke(0); strokeWeight(1.5);
   line(width * 0.08, height / 2, width * 0.92, height / 2);
   const tx = width * 0.08 + width * 0.84 * v;
@@ -835,7 +935,7 @@ function draw() {
       let x = (w - total) * 0.5;
       const y = h * 0.5;
       words.forEach((word, i) => {
-        const v = Waves.wave(i * 0.4, { wave: "pulse", t: t * 0.9, amplitude: 1 });
+        const v = Waves.wave(i * 0.4, { wave: "pulse", t: t * 1.2, amplitude: 1 });
         const on = v > 0;
         ctx.fillStyle = on ? palette.ink : palette.line;
         ctx.fillText(word, x, y);
@@ -851,12 +951,12 @@ const words = ['READ', 'PARSE', 'BEND', 'SHOW', 'REPEAT'];
 function setup() { createCanvas(620, 320); textFont('Oswald'); textSize(38); }
 function draw() {
   background(255);
-  const t = millis() / 1000;
+  const t = millis() / 600;
   const widths = words.map(w => textWidth(w));
   const total = widths.reduce((a, b) => a + b, 0) + 26 * (words.length - 1);
   let x = (width - total) / 2;
   for (let i = 0; i < words.length; i++) {
-    const v = Waves.wave(i * 0.4, { wave: 'pulse', t: t * 0.9, amplitude: 1 });
+    const v = Waves.wave(i * 0.4, { wave: 'pulse', t: t * 1.2, amplitude: 1 });
     const on = v > 0;
     fill(on ? 0 : 220); text(words[i], x, height / 2);
     if (on) { fill(246, 167, 150); rect(x, height / 2 + 20, widths[i], 4); }
@@ -895,7 +995,7 @@ function draw() {
 function setup() { createCanvas(620, 320); }
 function draw() {
   background(255);
-  const t = millis() / 1000;
+  const t = millis() / 600;
   const rows = 7;
   const rh = height * 0.78 / rows, top = height * 0.11;
   const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 1.0, amplitude: 1 }) + 1) / 2;
@@ -933,7 +1033,7 @@ function draw() {
       ctx.fillStyle = palette.ink;
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          const v = state.sampler.sample(c * 0.4 + r * 0.6, t * 0.8);
+          const v = state.sampler.sample(c * 0.4 + r * 0.6, t * 1.0);
           const rad = Math.max(0.5, v * Math.min(cw, ch) * 0.55);
           ctx.beginPath();
           ctx.arc(c * cw + cw / 2, r * ch + ch / 2, rad, 0, Math.PI * 2);
@@ -950,11 +1050,11 @@ function setup() {
 }
 function draw() {
   background(244);
-  const t = millis() / 1000;
+  const t = millis() / 600;
   const cw = width / COLS, ch = height / ROWS;
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      const v = s.sample(c * 0.4 + r * 0.6, t * 0.8);
+      const v = s.sample(c * 0.4 + r * 0.6, t * 1.0);
       circle(c * cw + cw / 2, r * ch + ch / 2, max(1, v * min(cw, ch) * 1.1));
     }
   }
@@ -972,7 +1072,7 @@ function draw() {
     notes: "batman is one of p5.waves' shaped waves: dips and notches built into the curve. Use when the journey itself should signal structure.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "batman", t: t * 0.8, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "batman", t: t * 1.0, amplitude: 1 }));
       const startX = w * 0.14;
       const endX = w * 0.86;
       const x = lerp(startX, endX, v);
@@ -995,8 +1095,8 @@ function draw() {
 function setup() { createCanvas(620, 320); }
 function draw() {
   background(255);
-  const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'batman', t: t * 0.8, amplitude: 1 }) + 1) / 2;
+  const t = millis() / 600;
+  const v = (Waves.wave(0, { wave: 'batman', t: t * 1.0, amplitude: 1 }) + 1) / 2;
   const sx = width * 0.14, ex = width * 0.86, y = height / 2;
   stroke(220); strokeWeight(2); line(sx, y, ex, y);
   noStroke(); fill(0);
@@ -1008,37 +1108,56 @@ function draw() {
 
   {
     id: "wave-word-picker",
-    name: "Wave Word Picker",
+    name: "Shift Word Roster",
     category: "type",
-    role: "A wave value indexes into a small list: copy becomes a rotating dial.",
-    tags: ["picker", "rotation"],
-    primitive: PRIMITIVES.wave,
+    role: "The sampler's live waveName becomes the displayed word, while targetName previews the next typographic voice.",
+    tags: ["shift", "name", "rotation"],
+    primitive: PRIMITIVES.sampler,
     reuse: "rotating copy",
-    notes: "Replace the word list to use this for tag clouds, status labels, or feature switches.",
-    draw(ctx, w, h, t) {
+    notes: "This is the library talking about itself: no lookup table is required because p5.waves exposes the active and target formulas.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
-      const options = ["DRIFT", "GATE", "PULSE", "FOLD", "SCAN", "SHIFT"];
-      const v = norm(Waves.wave(0, { wave: "stepped sine", t: t * 0.8, amplitude: 1 }));
-      const i = clamp(Math.floor(v * options.length), 0, options.length - 1);
-      const fontSize = Math.min(78, w * 0.16);
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({
+          shift: true,
+          shiftInterval: 2.2,
+          shiftDuration: 0.9,
+          group: "all",
+          range: [-1, 1]
+        });
+      }
+      const s = state.sampler;
+      s.sample(0, t);
+      const name = s.waveName.toUpperCase();
+      const target = s.targetName.toUpperCase();
+      const fontSize = Math.min(60, w * 0.13);
       ctx.font = `600 ${fontSize}px Oswald, sans-serif`;
       ctx.textBaseline = "middle";
       ctx.fillStyle = palette.ink;
-      ctx.fillText(options[i], w * 0.1, h * 0.5);
+      ctx.fillText(name, w * 0.08, h * 0.42);
       ctx.font = `500 13px Oswald, sans-serif`;
       ctx.fillStyle = palette.muted;
-      ctx.fillText(`INDEX ${i} / ${options.length - 1}`, w * 0.1, h * 0.86);
+      ctx.fillText(s.shifting ? `TARGET ${target}` : "HELD FORMULA", w * 0.08, h * 0.66);
+      ctx.fillStyle = palette.line;
+      ctx.fillRect(w * 0.08, h * 0.76, w * 0.84, 5);
+      ctx.fillStyle = s.shifting ? palette.peach : palette.ink;
+      ctx.fillRect(w * 0.08, h * 0.76, w * 0.84 * (s.shifting ? s.mix : 1), 5);
     },
     sketch: sketchTemplate(`
-const opts = ['DRIFT', 'GATE', 'PULSE', 'FOLD', 'SCAN', 'SHIFT'];
-function setup() { createCanvas(620, 320); textFont('Oswald'); }
+let s;
+function setup() {
+  createCanvas(620, 320); textFont('Oswald');
+  s = Waves.createSampler({ shift: true, shiftInterval: 2.2, shiftDuration: 0.9, group: 'all', range: [-1, 1] });
+}
 function draw() {
   background(255);
-  const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
-  const i = constrain(floor(v * opts.length), 0, opts.length - 1);
-  textSize(78); fill(0); text(opts[i], width * 0.1, height * 0.55);
-  textSize(13); fill(120); text('INDEX ' + i + ' / ' + (opts.length - 1), width * 0.1, height * 0.86);
+  const t = millis() / 600;
+  s.sample(0, t);
+  textSize(60); fill(0); text(s.waveName.toUpperCase(), width * 0.08, height * 0.45);
+  textSize(13); fill(120); text(s.shifting ? 'TARGET ' + s.targetName.toUpperCase() : 'HELD FORMULA', width * 0.08, height * 0.66);
+  noStroke(); fill(220); rect(width * 0.08, height * 0.76, width * 0.84, 5);
+  fill(s.shifting ? '#f6a796' : 0); rect(width * 0.08, height * 0.76, width * 0.84 * (s.shifting ? s.mix : 1), 5);
 }`)
   },
 
@@ -1070,7 +1189,7 @@ function draw() {
 function setup() { createCanvas(620, 320); noStroke(); }
 function draw() {
   background(255);
-  const t = millis() / 1000;
+  const t = millis() / 600;
   const cols = 14;
   const cw = width * 0.84 / cols, sx = width * 0.08;
   const v = (Waves.wave(0, { wave: 'steps', t: t * 1.0, amplitude: 1 }) + 1) / 2;
@@ -1085,45 +1204,40 @@ function draw() {
   },
 
   {
-    id: "opacity-rhythm",
-    name: "Opacity Rhythm",
+    id: "drum-caterpillar",
+    name: "Drum Caterpillar",
     category: "color",
-    role: "Per-element opacity is offset along x: a single sampler animates a whole row.",
-    tags: ["alpha", "rhythm"],
-    primitive: PRIMITIVES.sampler,
-    reuse: "spacers",
-    notes: "Reusing one sampler over many indices is the canonical p5.waves pattern.",
-    state: { sampler: null },
-    draw(ctx, w, h, t, state) {
+    role: "Twelve segments, twelve seeds: every tile picks its own wave and beats its own tempo. Nothing ever syncs.",
+    tags: ["seed", "polyrhythm", "alpha"],
+    primitive: PRIMITIVES.wave,
+    reuse: "live data rows, status grids",
+    notes: "Per-tile seed hashes a different formula per segment. Twelve genuinely different rhythms from one call. Without the 34-wave catalogue you'd need twelve hand-tuned oscillators.",
+    draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      if (!state.sampler) {
-        state.sampler = Waves.createSampler({ wave: "classic sine", range: [0.1, 1], frequency: 0.9 });
-      }
-      const count = 14;
+      const count = 12;
       const gap = 6;
       const cw = (w * 0.86 - gap * (count - 1)) / count;
       const startX = w * 0.07;
+      const tt = t * 1.2;
       for (let i = 0; i < count; i++) {
-        const a = state.sampler.sample(i * 0.5, t * 0.8);
+        const a = (Waves.wave(0, { seed: i + 1, t: tt, amplitude: 1 }) + 1) / 2;
         ctx.fillStyle = palette.ink;
-        ctx.globalAlpha = a;
+        ctx.globalAlpha = 0.15 + a * 0.85;
         ctx.fillRect(startX + i * (cw + gap), h * 0.22, cw, h * 0.56);
       }
       ctx.globalAlpha = 1;
+      label(ctx, "12 SEEDS · 12 FORMULAS · 0 SYNC", w * 0.07, h * 0.92, palette.muted, 10);
     },
     sketch: sketchTemplate(`
-let s;
-function setup() {
-  createCanvas(620, 320); noStroke();
-  s = Waves.createSampler({ wave: 'classic sine', range: [0.1, 1], frequency: 0.9 });
-}
+function setup() { createCanvas(620, 320); noStroke(); }
 function draw() {
   background(255);
-  const t = millis() / 1000;
-  const n = 14, gap = 6;
+  const t = millis() / 600 * 1.2;
+  const n = 12, gap = 6;
   const cw = (width * 0.86 - gap * (n - 1)) / n, sx = width * 0.07;
   for (let i = 0; i < n; i++) {
-    fill(17, 18, 19, s.sample(i * 0.5, t * 0.8) * 255);
+    const a = (Waves.wave(0, { seed: i + 1, t, amplitude: 1 }) + 1) / 2;
+    fill(17, 18, 19, (0.15 + a * 0.85) * 255);
     rect(sx + i * (cw + gap), height * 0.22, cw, height * 0.56);
   }
 }`)
@@ -1131,23 +1245,41 @@ function draw() {
 
   {
     id: "notification-rhythm",
-    name: "Notification Rhythm",
+    name: "Alert Rhythm Dial",
     category: "interface",
-    role: "A pulse builds and decays: a heartbeat for unread counts, presence, or alerts.",
-    tags: ["pulse", "notification"],
-    primitive: PRIMITIVES.wave,
+    role: "A shifting sampler changes alert cadence: the UI shows when the rhythm is held and when it is morphing.",
+    tags: ["shift", "pulse", "notification"],
+    primitive: PRIMITIVES.sampler,
     reuse: "alerts",
-    notes: "Combine wobble sine with a small dot to convey 'unread without urgency'.",
-    draw(ctx, w, h, t) {
+    notes: "Alert states become more useful when the cadence can change families. The card reads waveName, targetName, shifting and mix directly from the sampler.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "wobble sine", t: t * 0.8, amplitude: 1 }));
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({
+          shift: true,
+          shiftInterval: 2.4,
+          shiftDuration: 0.7,
+          group: "all",
+          range: [-1, 1]
+        });
+      }
+      const s = state.sampler;
+      const v = norm(s.sample(0, t * 1.2));
       const cx = w * 0.32;
       const cy = h * 0.5;
-      ctx.fillStyle = palette.peach;
-      ctx.globalAlpha = 0.4;
-      ctx.beginPath(); ctx.arc(cx, cy, 38 + v * 22, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = palette.line;
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, 34 + i * 18 + v * 14, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = s.shifting ? palette.lemon : palette.peach;
+      ctx.globalAlpha = 0.35 + v * 0.45;
+      ctx.beginPath(); ctx.arc(cx, cy, 32 + v * 24, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
-      ctx.fillStyle = palette.peach;
+      ctx.fillStyle = s.shifting ? palette.ink : palette.peach;
       ctx.beginPath(); ctx.arc(cx, cy, 24, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = palette.panel;
       ctx.font = "600 14px Oswald, sans-serif";
@@ -1155,75 +1287,115 @@ function draw() {
       ctx.textBaseline = "middle";
       ctx.fillText("12", cx, cy);
       ctx.textAlign = "left";
-      label(ctx, "NEW ACTIVITY", w * 0.46, cy - 8, palette.ink, 14);
-      label(ctx, "12 unread, last seen 4m ago", w * 0.46, cy + 14, palette.muted, 12);
-    },
-    sketch: sketchTemplate(`
-function setup() { createCanvas(620, 320); textFont('Oswald'); }
-function draw() {
-  background(255);
-  const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'wobble sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
-  const cx = width * 0.32, cy = height / 2;
-  noStroke(); fill(246, 167, 150, 100); circle(cx, cy, 76 + v * 44);
-  fill(246, 167, 150); circle(cx, cy, 48);
-  fill(255); textSize(14); textAlign(CENTER, CENTER); text('12', cx, cy);
-  textAlign(LEFT, BASELINE); fill(0); text('NEW ACTIVITY', width * 0.46, cy);
-}`)
-  },
-
-  {
-    id: "transition-meter",
-    name: "Transition Meter",
-    category: "state",
-    role: "Read sampler.mix as a progress meter during a wave morph.",
-    tags: ["mix", "transition"],
-    primitive: PRIMITIVES.sampler,
-    reuse: "state transitions",
-    notes: "When the sampler is shifting, mix climbs 0→1; otherwise it sits at 0 (held).",
-    state: { sampler: null },
-    draw(ctx, w, h, t, state) {
-      clear(ctx, w, h, palette.panel);
-      if (!state.sampler) {
-        state.sampler = Waves.createSampler({ shift: true, shiftInterval: 2, shiftDuration: 0.8, group: "gentle" });
+      label(ctx, s.shifting ? "CADENCE SHIFT" : "HELD ALERT", w * 0.46, cy - 24, palette.ink, 14);
+      label(ctx, s.waveName.toUpperCase(), w * 0.46, cy + 2, palette.muted, 12);
+      if (s.shifting) {
+        label(ctx, "TO " + s.targetName.toUpperCase(), w * 0.46, cy + 24, palette.muted, 12);
+        ctx.fillStyle = palette.line;
+        ctx.fillRect(w * 0.46, cy + 38, w * 0.34, 4);
+        ctx.fillStyle = palette.ink;
+        ctx.fillRect(w * 0.46, cy + 38, w * 0.34 * s.mix, 4);
       }
-      state.sampler.sample(0, t);
-      const s = state.sampler;
-      const radius = Math.min(w, h) * 0.32;
-      const cx = w * 0.5;
-      const cy = h * 0.5;
-      const angle = (s.mix || 0) * Math.PI * 2;
-      ctx.lineWidth = 14;
-      ctx.strokeStyle = palette.line;
-      ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.stroke();
-      ctx.strokeStyle = s.shifting ? palette.peach : palette.mint;
-      ctx.beginPath(); ctx.arc(cx, cy, radius, -Math.PI / 2, -Math.PI / 2 + angle); ctx.stroke();
-      ctx.font = "600 30px Oswald, sans-serif";
-      ctx.fillStyle = palette.ink;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(`${Math.round((s.mix || 0) * 100)}%`, cx, cy - 6);
-      ctx.font = "500 11px Oswald, sans-serif";
-      ctx.fillStyle = palette.muted;
-      ctx.fillText(s.shifting ? "MORPHING" : "HELD", cx, cy + 18);
-      ctx.textAlign = "left";
     },
     sketch: sketchTemplate(`
 let s;
 function setup() {
   createCanvas(620, 320); textFont('Oswald');
-  s = Waves.createSampler({ shift: true, shiftInterval: 2, shiftDuration: 0.8, group: 'gentle' });
+  s = Waves.createSampler({ shift: true, shiftInterval: 2.4, shiftDuration: 0.7, group: 'all', range: [-1, 1] });
 }
 function draw() {
   background(255);
-  s.sample(0, millis() / 1000);
-  const cx = width / 2, cy = height / 2, r = min(width, height) * 0.32;
-  strokeWeight(14); noFill();
-  stroke(220); circle(cx, cy, r * 2);
-  stroke(s.shifting ? '#f6a796' : '#c7e89c');
-  arc(cx, cy, r * 2, r * 2, -PI / 2, -PI / 2 + (s.mix || 0) * TWO_PI);
-  noStroke(); fill(0); textAlign(CENTER, CENTER); textSize(30);
-  text(round((s.mix || 0) * 100) + '%', cx, cy - 6);
+  const v = (s.sample(0, millis() / 600 * 1.2) + 1) / 2;
+  const cx = width * 0.32, cy = height / 2;
+  noFill(); stroke(220); for (let i = 0; i < 4; i++) circle(cx, cy, 68 + i * 36 + v * 28);
+  noStroke(); fill(s.shifting ? '#111213' : '#f6a796'); circle(cx, cy, 48);
+  fill(255); textSize(14); textAlign(CENTER, CENTER); text('12', cx, cy);
+  textAlign(LEFT, BASELINE); fill(0); text(s.shifting ? 'CADENCE SHIFT' : 'HELD ALERT', width * 0.46, cy - 20);
+  fill(120); text(s.waveName.toUpperCase(), width * 0.46, cy + 4);
+}`)
+  },
+
+  {
+    id: "transition-meter",
+    name: "Formula Mix Section",
+    category: "state",
+    role: "sampler.mix becomes a section cut through current and target formulas, not just a progress ring.",
+    tags: ["mix", "transition", "waveName"],
+    primitive: PRIMITIVES.sampler,
+    reuse: "state transitions",
+    notes: "The useful part is the relationship between waveName, targetName and mix: the transition itself becomes inspectable material.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.panel);
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({ shift: true, shiftInterval: 2, shiftDuration: 0.8, group: "all" });
+      }
+      state.sampler.sample(0, t);
+      const s = state.sampler;
+      const mix = s.mix || 0;
+      const top = h * 0.26;
+      const mid = h * 0.52;
+      const bot = h * 0.78;
+      const amp = h * 0.12;
+      function drawFormula(name, y, color, alpha = 1) {
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let x = 0; x <= w; x += 4) {
+          const v = Waves.wave(x * 0.02, { wave: name, t: t * 0.9, amplitude: 1 });
+          if (x === 0) ctx.moveTo(x, y + v * amp);
+          else ctx.lineTo(x, y + v * amp);
+        }
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      drawFormula(s.waveName, top, palette.ink, 0.7);
+      drawFormula(s.targetName, bot, palette.peach, 0.7);
+      ctx.strokeStyle = palette.ink;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += 4) {
+        const a = Waves.wave(x * 0.02, { wave: s.waveName, t: t * 0.9, amplitude: 1 });
+        const b = Waves.wave(x * 0.02, { wave: s.targetName, t: t * 0.9, amplitude: 1 });
+        const v = lerp(a, b, mix);
+        if (x === 0) ctx.moveTo(x, mid + v * amp);
+        else ctx.lineTo(x, mid + v * amp);
+      }
+      ctx.stroke();
+      ctx.fillStyle = palette.line;
+      ctx.fillRect(w * 0.08, h * 0.08, w * 0.84, 5);
+      ctx.fillStyle = palette.ink;
+      ctx.fillRect(w * 0.08, h * 0.08, w * 0.84 * mix, 5);
+      label(ctx, s.waveName.toUpperCase(), 12, top - amp - 8, palette.ink, 10);
+      label(ctx, "MIX " + mix.toFixed(2), 12, mid - amp - 8, palette.ink, 10);
+      label(ctx, s.targetName.toUpperCase(), 12, bot - amp - 8, palette.peach, 10);
+    },
+    sketch: sketchTemplate(`
+let s;
+function setup() {
+  createCanvas(620, 320); textFont('Oswald');
+  s = Waves.createSampler({ shift: true, shiftInterval: 2, shiftDuration: 0.8, group: 'all' });
+}
+function draw() {
+  background(255);
+  const t = millis() / 600;
+  s.sample(0, t);
+  const mix = s.mix || 0;
+  drawFormula(s.waveName, height * 0.26, 0, 120);
+  drawFormula(s.targetName, height * 0.78, '#f6a796', 180);
+  noFill(); stroke(0); strokeWeight(3); beginShape();
+  for (let x = 0; x <= width; x += 4) {
+    const a = Waves.wave(x * 0.02, { wave: s.waveName, t: t * 0.9, amplitude: 1 });
+    const b = Waves.wave(x * 0.02, { wave: s.targetName, t: t * 0.9, amplitude: 1 });
+    vertex(x, height * 0.52 + lerp(a, b, mix) * height * 0.12);
+  }
+  endShape();
+}
+function drawFormula(name, y, color, alpha) {
+  noFill(); stroke(color); drawingContext.globalAlpha = alpha / 255; strokeWeight(2); beginShape();
+  for (let x = 0; x <= width; x += 4) vertex(x, y + Waves.wave(x * 0.02, { wave: name, t: millis() / 600 * 0.9, amplitude: 1 }) * height * 0.12);
+  endShape(); drawingContext.globalAlpha = 1;
 }`)
   },
 
@@ -1301,7 +1473,7 @@ function setup() {
 
 function draw() {
   background(255);
-  const t = millis() / 1000;
+  const t = millis() / 600;
   s.sample(0, t);
 
   if (!wasShifting && s.shifting) {
@@ -1368,45 +1540,52 @@ function drawGrid(t, s) {
 
   {
     id: "rhythmic-divider",
-    name: "Rhythmic Divider",
+    name: "Divider Family Shift",
     category: "layout",
-    role: "A divider made of pulses: the same wave drives all dashes at once.",
-    tags: ["divider", "dashes"],
+    role: "A divider whose dash behaviour changes formula family while preserving the same mark system.",
+    tags: ["divider", "shift", "dashes"],
     primitive: PRIMITIVES.sampler,
     reuse: "section breaks",
-    notes: "createSampler + per-index offset is the cheap, idiomatic way to drive a strip of marks.",
+    notes: "The divider is a small proof of reusable behaviour: only the sampler shifts, while the marks keep their layout contract.",
     state: { sampler: null },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
       if (!state.sampler) {
-        state.sampler = Waves.createSampler({ wave: "pulse", amplitude: 1, frequency: 1 });
+        state.sampler = Waves.createSampler({ shift: true, shiftInterval: 2.2, shiftDuration: 0.8, group: "all", amplitude: 1, frequency: 1 });
       }
+      const s = state.sampler;
+      s.sample(0, t);
       const dashes = 24;
       const dx = w * 0.88 / dashes;
       const startX = w * 0.06;
       const y = h * 0.5;
       for (let i = 0; i < dashes; i++) {
-        const v = state.sampler.sample(i * 0.4, t * 0.8);
-        const lift = v > 0 ? -10 : 10;
-        ctx.fillStyle = v > 0 ? palette.ink : palette.muted;
-        ctx.fillRect(startX + i * dx, y + lift - 2, dx * 0.7, 4);
+        const v = s.sample(i * 0.4, t * 1.0);
+        const lift = v * 18;
+        const thick = lerp(2, 12, norm(v));
+        ctx.fillStyle = s.shifting && i % 3 === 0 ? palette.peach : palette.ink;
+        ctx.fillRect(startX + i * dx, y + lift - thick / 2, dx * 0.68, thick);
       }
+      label(ctx, s.shifting ? `${s.waveName} -> ${s.targetName}` : s.waveName, 14, 20, palette.muted, 11);
     },
     sketch: sketchTemplate(`
 let s;
 function setup() {
-  createCanvas(620, 320); noStroke();
-  s = Waves.createSampler({ wave: 'pulse', amplitude: 1, frequency: 1 });
+  createCanvas(620, 320); textFont('Oswald'); noStroke();
+  s = Waves.createSampler({ shift: true, shiftInterval: 2.2, shiftDuration: 0.8, group: 'all', amplitude: 1, frequency: 1 });
 }
 function draw() {
   background(255);
-  const t = millis() / 1000, n = 24;
+  const t = millis() / 600, n = 24;
+  s.sample(0, t);
   const dx = width * 0.88 / n, sx = width * 0.06, y = height / 2;
   for (let i = 0; i < n; i++) {
-    const v = s.sample(i * 0.4, t * 0.8);
-    fill(v > 0 ? 0 : 130);
-    rect(sx + i * dx, y + (v > 0 ? -12 : 8), dx * 0.7, 4);
+    const v = s.sample(i * 0.4, t * 1.0);
+    const thick = lerp(2, 12, (v + 1) / 2);
+    fill(s.shifting && i % 3 === 0 ? '#f6a796' : 0);
+    rect(sx + i * dx, y + v * 18 - thick / 2, dx * 0.68, thick);
   }
+  fill(120); textSize(11); text(s.shifting ? s.waveName + ' -> ' + s.targetName : s.waveName, 14, 22);
 }`)
   },
 
@@ -1414,50 +1593,50 @@ function draw() {
     id: "pattern-tile",
     name: "Pattern Tile",
     category: "texture",
-    role: "createGrid yields a tileable pattern field: drop it on a poster or a fill area.",
-    tags: ["createGrid", "tile", "print"],
-    primitive: PRIMITIVES.grid,
+    role: "Two samplers sum into a tileable pattern field: drop it on a poster or a fill area.",
+    tags: ["sampler", "tile", "print"],
+    primitive: PRIMITIVES.sampler,
     reuse: "fill patterns",
     notes: "Two pulses at same frequency make a checker; sine + pulse makes bands; sine + sine makes ovals.",
-    state: { grid: null, cols: 14, rows: 8 },
+    state: { rowS: null, colS: null, cols: 14, rows: 8 },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.paper);
-      if (!state.grid) {
-        state.grid = Waves.createGrid(state.cols, state.rows, {
-          waveRow: "pulse",
-          waveCol: "classic sine",
-          range: [0, 1],
-          speed: 0.5
-        });
+      if (!state.rowS) {
+        state.rowS = Waves.createSampler({ wave: "pulse", range: [-1, 1] });
+        state.colS = Waves.createSampler({ wave: "classic sine", range: [-1, 1] });
       }
-      const cells = state.grid.sample(t * 0.8);
+      const tt = t * 0.5;
+      const rowV = new Array(state.rows);
+      const colV = new Array(state.cols);
+      for (let r = 0; r < state.rows; r++) rowV[r] = state.rowS.sample(r, tt);
+      for (let c = 0; c < state.cols; c++) colV[c] = state.colS.sample(c, tt);
       const cw = w / state.cols;
       const ch = h / state.rows;
       for (let r = 0; r < state.rows; r++) {
         for (let c = 0; c < state.cols; c++) {
-          const v = cells[r * state.cols + c];
+          const v = (rowV[r] + colV[c] + 2) / 4;
           ctx.fillStyle = v > 0.55 ? palette.ink : (v > 0.3 ? palette.peach : palette.paper);
           ctx.fillRect(c * cw, r * ch, cw + 0.5, ch + 0.5);
         }
       }
     },
     sketch: sketchTemplate(`
-let g;
+let rowS, colS;
 const COLS = 14, ROWS = 8;
 function setup() {
   createCanvas(620, 320); noStroke();
-  g = Waves.createGrid(COLS, ROWS, {
-    waveRow: 'pulse', waveCol: 'classic sine',
-    range: [0, 1], speed: 0.5
-  });
+  rowS = Waves.createSampler({ wave: 'pulse', range: [-1, 1] });
+  colS = Waves.createSampler({ wave: 'classic sine', range: [-1, 1] });
 }
 function draw() {
   background(244);
-  const cells = g.sample(millis() / 1000 * 0.8);
+  const tt = millis() / 600 * 0.5;
+  const rowV = []; for (let r = 0; r < ROWS; r++) rowV.push(rowS.sample(r, tt));
+  const colV = []; for (let c = 0; c < COLS; c++) colV.push(colS.sample(c, tt));
   const cw = width / COLS, ch = height / ROWS;
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
-      const v = cells[r * COLS + c];
+      const v = (rowV[r] + colV[c] + 2) / 4;
       fill(v > 0.55 ? 0 : (v > 0.3 ? '#f6a796' : 244));
       rect(c * cw, r * ch, cw + 0.5, ch + 0.5);
     }
@@ -1467,124 +1646,183 @@ function draw() {
 
   {
     id: "cursor-echo",
-    name: "Cursor Echo",
+    name: "Pointer Phase Echo",
     category: "motion",
-    role: "Multiple trailing dots: each one a single sampler call with a per-trail offset.",
-    tags: ["trail", "echo"],
+    role: "A trail keeps its spacing, but the sampler shifts the motion formula underneath each echo.",
+    tags: ["shift", "trail", "echo"],
     primitive: PRIMITIVES.sampler,
     reuse: "pointer feedback",
-    notes: "In production you'd offset by past pointer time; here the wave stands in for time.",
+    notes: "The point path is not stored keyframes. A single shifting sampler draws phase echoes, then changes gait without changing the trail code.",
     state: { sampler: null },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
       if (!state.sampler) {
-        state.sampler = Waves.createSampler({ wave: "classic sine", range: [-1, 1] });
+        state.sampler = Waves.createSampler({
+          shift: true,
+          shiftInterval: 2.6,
+          shiftDuration: 0.9,
+          group: "all",
+          range: [-1, 1]
+        });
       }
-      const trails = 7;
+      const s = state.sampler;
+      s.sample(0, t);
+      ctx.strokeStyle = palette.line;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = w * 0.1; x <= w * 0.9; x += 8) {
+        const y = h * 0.5 + s.sample(x * 0.025, t * 0.8) * h * 0.22;
+        if (x === w * 0.1) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      const trails = 9;
       for (let i = 0; i < trails; i++) {
-        const tx = state.sampler.sample(i * 0.3, t * 0.8);
-        const ty = state.sampler.sample(i * 0.3 + 12, t * 0.6);
+        const phase = i * 0.42;
+        const tx = s.sample(phase, t * 1.0);
+        const ty = s.sample(phase + 12, t * 0.8);
         const x = w * 0.5 + tx * w * 0.32;
         const y = h * 0.5 + ty * h * 0.28;
-        const r = lerp(4, 16, i / (trails - 1));
-        ctx.fillStyle = palette.ink;
-        ctx.globalAlpha = lerp(0.2, 1, i / (trails - 1));
+        const p = i / (trails - 1);
+        const r = lerp(3, 15, p);
+        ctx.fillStyle = i === trails - 1 && s.shifting ? palette.peach : palette.ink;
+        ctx.globalAlpha = lerp(0.14, 1, p);
         ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
       }
       ctx.globalAlpha = 1;
+      label(ctx, s.shifting ? `${s.waveName} -> ${s.targetName}` : s.waveName, 14, 18, palette.muted, 11);
     },
     sketch: sketchTemplate(`
 let s;
 function setup() {
   createCanvas(620, 320); noStroke();
-  s = Waves.createSampler({ wave: 'classic sine', range: [-1, 1] });
+  s = Waves.createSampler({ shift: true, shiftInterval: 2.6, shiftDuration: 0.9, group: 'all', range: [-1, 1] });
 }
 function draw() {
   background(255);
-  const t = millis() / 1000, n = 7;
+  const t = millis() / 600, n = 9;
+  s.sample(0, t);
+  noFill(); stroke(220);
+  beginShape();
+  for (let x = width * 0.1; x <= width * 0.9; x += 8) vertex(x, height / 2 + s.sample(x * 0.025, t * 0.8) * height * 0.22);
+  endShape();
+  noStroke();
   for (let i = 0; i < n; i++) {
-    const x = width / 2 + s.sample(i * 0.3, t * 0.8) * width * 0.32;
-    const y = height / 2 + s.sample(i * 0.3 + 12, t * 0.6) * height * 0.28;
+    const x = width / 2 + s.sample(i * 0.42, t * 1.0) * width * 0.32;
+    const y = height / 2 + s.sample(i * 0.42 + 12, t * 0.8) * height * 0.28;
     fill(17, 18, 19, lerp(60, 255, i / (n - 1)));
     circle(x, y, lerp(8, 32, i / (n - 1)));
   }
+  fill(120); textSize(11); text(s.waveName, 14, 22);
 }`)
   },
 
   {
-    id: "contrast-meter",
-    name: "Contrast Meter",
+    id: "strobe-newt",
+    name: "Strobe Newt",
     category: "color",
-    role: "Wave value drives a black/white split: readable as a brightness oscillation.",
-    tags: ["contrast", "split"],
+    role: "An electric little creature: panel flicks between lemon and ink on unpredictable beats.",
+    tags: ["wild", "flicker", "up down pulse"],
     primitive: PRIMITIVES.wave,
-    reuse: "preview chips",
-    notes: "A simple, expressive way to show a value's polarity at a glance.",
+    reuse: "warning chips, attention states",
+    notes: "mode: 'wild' + unpredictability bends the underlying pulse so it never lands on the same beat twice. Plain sin() can't break its own pattern: this newt only exists with p5.waves.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "fade out", t: t * 0.8, amplitude: 1 }));
-      const splitX = w * 0.1 + w * 0.8 * v;
-      ctx.fillStyle = palette.ink;
+      const v = norm(Waves.wave(0, {
+        wave: "up down pulse",
+        mode: "wild",
+        unpredictability: 0.75,
+        t: t * 1.6,
+        amplitude: 1
+      }));
+      const on = v > 0.5;
+      ctx.fillStyle = on ? palette.lemon : palette.ink;
       ctx.fillRect(w * 0.1, h * 0.2, w * 0.8, h * 0.6);
-      ctx.fillStyle = palette.lemon;
-      ctx.fillRect(w * 0.1, h * 0.2, splitX - w * 0.1, h * 0.6);
-      ctx.fillStyle = palette.ink;
-      ctx.fillRect(splitX - 1, h * 0.2, 2, h * 0.6);
-      label(ctx, `BRIGHT ${Math.round(v * 100)}%`, w * 0.1, h * 0.93, palette.muted, 11);
+      // newt eye: pupil shifts side to side as it blinks
+      ctx.fillStyle = on ? palette.ink : palette.lemon;
+      ctx.beginPath();
+      ctx.arc(w * 0.5, h * 0.5, 22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = on ? palette.lemon : palette.ink;
+      ctx.beginPath();
+      ctx.arc(w * 0.5 + (on ? 5 : -5), h * 0.5, 8, 0, Math.PI * 2);
+      ctx.fill();
+      label(ctx, on ? "SPARK" : "DARK", w * 0.1, h * 0.93, palette.muted, 11);
     },
     sketch: sketchTemplate(`
 function setup() { createCanvas(620, 320); }
 function draw() {
   background(255);
-  const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'fade out', t: t * 0.8, amplitude: 1 }) + 1) / 2;
-  const sx = width * 0.1 + width * 0.8 * v;
-  noStroke(); fill(0); rect(width * 0.1, height * 0.2, width * 0.8, height * 0.6);
-  fill('#f3e679'); rect(width * 0.1, height * 0.2, sx - width * 0.1, height * 0.6);
+  const v = (Waves.wave(0, {
+    wave: 'up down pulse',
+    mode: 'wild',
+    unpredictability: 0.75,
+    t: millis() / 600 * 1.6,
+    amplitude: 1
+  }) + 1) / 2;
+  const on = v > 0.5;
+  noStroke();
+  fill(on ? '#f3e679' : 0);
+  rect(width * 0.1, height * 0.2, width * 0.8, height * 0.6);
+  fill(on ? 0 : '#f3e679');
+  circle(width / 2, height / 2, 44);
+  fill(on ? '#f3e679' : 0);
+  circle(width / 2 + (on ? 5 : -5), height / 2, 16);
 }`)
   },
 
   {
     id: "hover-pulse",
-    name: "Hover Pulse",
+    name: "CTA Pulse Compare",
     category: "interface",
-    role: "wobble sine gives the halo an uneven breath: alive, not metronomic.",
-    tags: ["button", "pulse", "wobble sine"],
+    role: "Stable and wild versions of the same pulse show why the button's attention pattern is a wave choice.",
+    tags: ["button", "wild", "compare"],
     primitive: PRIMITIVES.wave,
     reuse: "cta buttons",
-    notes: "wobble sine is amplitude-modulated: the pulse waxes and wanes irregularly. A plain sine would feel like a heartbeat monitor.",
+    notes: "Same wave, two modes: stable is polite, wild adds unpredictability for urgent states without writing a second animation.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "wobble sine", t: t * 0.8, amplitude: 1 }));
-      const bx = w * 0.22;
-      const by = h * 0.38;
-      const bw = w * 0.56;
-      const bh = h * 0.24;
-      ctx.fillStyle = palette.mint;
-      ctx.globalAlpha = 0.3 + v * 0.5;
-      ctx.fillRect(bx - 10, by - 10, bw + 20, bh + 20);
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = palette.ink;
-      ctx.fillRect(bx, by, bw, bh);
-      ctx.fillStyle = palette.paper;
-      ctx.font = "600 14px Oswald, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("ACTIVATE", bx + bw / 2, by + bh / 2);
+      const stable = norm(Waves.wave(0, { wave: "wobble sine", t: t * 1.0, amplitude: 1 }));
+      const wild = norm(Waves.wave(0, { wave: "wobble sine", mode: "wild", unpredictability: 0.7, t: t * 1.0, amplitude: 1 }));
+      const items = [
+        { label: "STABLE", value: stable, x: w * 0.08, color: palette.mint },
+        { label: "WILD", value: wild, x: w * 0.53, color: palette.lemon }
+      ];
+      items.forEach(item => {
+        const bx = item.x;
+        const by = h * 0.38;
+        const bw = w * 0.39;
+        const bh = h * 0.24;
+        ctx.fillStyle = item.color;
+        ctx.globalAlpha = 0.22 + item.value * 0.62;
+        ctx.fillRect(bx - 8 - item.value * 10, by - 8 - item.value * 10, bw + 16 + item.value * 20, bh + 16 + item.value * 20);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = palette.ink;
+        ctx.fillRect(bx, by, bw, bh);
+        ctx.fillStyle = palette.paper;
+        ctx.font = "600 13px Oswald, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(item.label, bx + bw / 2, by + bh / 2);
+        label(ctx, item.label, bx, by - 22, palette.muted, 11);
+      });
       ctx.textAlign = "left";
     },
     sketch: sketchTemplate(`
 function setup() { createCanvas(620, 320); textFont('Oswald'); }
 function draw() {
   background(255);
-  const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'wobble sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
-  const bx = width * 0.22, by = height * 0.38, bw = width * 0.56, bh = height * 0.24;
-  noStroke(); fill(199, 232, 156, 75 + v * 128);
-  rect(bx - 10, by - 10, bw + 20, bh + 20);
-  fill(0); rect(bx, by, bw, bh);
-  fill(244); textSize(14); textAlign(CENTER, CENTER);
-  text('ACTIVATE', bx + bw / 2, by + bh / 2);
+  const t = millis() / 600;
+  const stable = (Waves.wave(0, { wave: 'wobble sine', t, amplitude: 1 }) + 1) / 2;
+  const wild = (Waves.wave(0, { wave: 'wobble sine', mode: 'wild', unpredictability: 0.7, t, amplitude: 1 }) + 1) / 2;
+  drawButton(width * 0.08, 'STABLE', stable, '#c7e89c');
+  drawButton(width * 0.53, 'WILD', wild, '#f3e679');
+}
+function drawButton(x, label, v, color) {
+  const by = height * 0.38, bw = width * 0.39, bh = height * 0.24;
+  noStroke(); fill(color); drawingContext.globalAlpha = 0.22 + v * 0.62;
+  rect(x - 8 - v * 10, by - 8 - v * 10, bw + 16 + v * 20, bh + 16 + v * 20);
+  drawingContext.globalAlpha = 1; fill(0); rect(x, by, bw, bh);
+  fill(244); textSize(13); textAlign(CENTER, CENTER); text(label, x + bw / 2, by + bh / 2);
 }`)
   },
 
@@ -1600,7 +1838,7 @@ function draw() {
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       const modes = ["LIVE", "DRAFT", "ARCHIVE"];
-      const v = norm(Waves.wave(0, { wave: "stepped sine", t: t * 0.8, amplitude: 1 }));
+      const v = norm(Waves.wave(0, { wave: "stepped sine", t: t * 1.0, amplitude: 1 }));
       const active = clamp(Math.floor(v * modes.length), 0, modes.length - 1);
       const total = w * 0.84;
       const startX = w * 0.08;
@@ -1627,8 +1865,8 @@ const modes = ['LIVE', 'DRAFT', 'ARCHIVE'];
 function setup() { createCanvas(620, 320); textFont('Oswald'); }
 function draw() {
   background(255);
-  const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
+  const t = millis() / 600;
+  const v = (Waves.wave(0, { wave: 'stepped sine', t: t * 1.0, amplitude: 1 }) + 1) / 2;
   const active = constrain(floor(v * modes.length), 0, modes.length - 1);
   const total = width * 0.84, sx = width * 0.08, sw = total / modes.length;
   noFill(); stroke(0); strokeWeight(1.5);
@@ -1644,75 +1882,118 @@ function draw() {
 
   {
     id: "mask-aperture",
-    name: "Mask Aperture",
+    name: "Aperture Sampler",
     category: "interface",
-    role: "A wave opens and closes a circular mask: reveal that breathes.",
-    tags: ["mask", "reveal"],
-    primitive: PRIMITIVES.wave,
+    role: "One shifting sampler opens several apertures with different phase offsets, so the reveal pattern changes families.",
+    tags: ["shift", "mask", "reveal"],
+    primitive: PRIMITIVES.sampler,
     reuse: "previews",
-    notes: "Round linked sine gives a soft, organic opening: drop straight on top of any image fill.",
-    draw(ctx, w, h, t) {
+    notes: "A plain sine can open one iris. The sampler turns a set of apertures into a coordinated, shifting reveal system.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
-      // base "image"
-      const bands = [palette.peach, palette.pink, palette.sky, palette.lemon];
-      const bandH = h / bands.length;
-      bands.forEach((color, i) => {
-        ctx.fillStyle = color;
-        ctx.fillRect(0, i * bandH, w, bandH);
-      });
-      const v = norm(Waves.wave(0, { wave: "round linked sine", t: t * 0.5, amplitude: 1 }));
-      const r = lerp(20, Math.min(w, h) * 0.55, v);
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({
+          shift: true,
+          shiftInterval: 2.8,
+          shiftDuration: 1,
+          group: "gentle",
+          range: [-1, 1]
+        });
+      }
+      const s = state.sampler;
+      s.sample(0, t);
+      const cols = 11;
+      const rows = 6;
+      const cw = w / cols;
+      const ch = h / rows;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          ctx.fillStyle = (c + r) % 2 ? palette.ink : palette.line;
+          ctx.fillRect(c * cw, r * ch, cw + 0.5, ch + 0.5);
+        }
+      }
       ctx.save();
-      ctx.globalCompositeOperation = "destination-in";
-      ctx.beginPath();
-      ctx.arc(w * 0.5, h * 0.5, r, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillStyle = palette.panel;
+      ctx.fillRect(0, 0, w, h);
+      ctx.globalCompositeOperation = "destination-out";
+      const points = [
+        [0.24, 0.35, 0.0],
+        [0.48, 0.58, 0.7],
+        [0.7, 0.32, 1.4],
+        [0.78, 0.72, 2.1]
+      ];
+      points.forEach(([px, py, phase]) => {
+        const v = norm(s.sample(phase, t * 0.8));
+        const rad = lerp(8, Math.min(w, h) * 0.28, v);
+        ctx.beginPath();
+        ctx.arc(w * px, h * py, rad, 0, Math.PI * 2);
+        ctx.fill();
+      });
       ctx.restore();
-      ctx.strokeStyle = palette.ink;
+      ctx.strokeStyle = s.shifting ? palette.peach : palette.ink;
       ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(w * 0.5, h * 0.5, r, 0, Math.PI * 2);
-      ctx.stroke();
+      points.forEach(([px, py, phase]) => {
+        const rad = lerp(8, Math.min(w, h) * 0.28, norm(s.sample(phase, t * 0.8)));
+        ctx.beginPath(); ctx.arc(w * px, h * py, rad, 0, Math.PI * 2); ctx.stroke();
+      });
+      label(ctx, s.shifting ? `${s.waveName} -> ${s.targetName}` : s.waveName, 14, 18, palette.muted, 11);
     },
     sketch: sketchTemplate(`
-let layer;
+let s;
 function setup() {
   createCanvas(620, 320);
-  layer = createGraphics(620, 320);
+  s = Waves.createSampler({ shift: true, shiftInterval: 2.8, shiftDuration: 1, group: 'gentle', range: [-1, 1] });
 }
 function draw() {
   background(255);
-  const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'round linked sine', t: t * 0.5, amplitude: 1 }) + 1) / 2;
-  const r = lerp(20, min(width, height) * 0.55, v);
-  layer.clear();
-  const bands = ['#f6a796', '#f9b7c4', '#b8d2ff', '#f3e679'];
-  const bh = height / bands.length;
-  for (let i = 0; i < bands.length; i++) { layer.noStroke(); layer.fill(bands[i]); layer.rect(0, i * bh, width, bh); }
-  layer.erase(); layer.noStroke(); layer.rect(0, 0, width, height); layer.noErase();
-  // p5 mask: draw clipped circle via blend
+  const t = millis() / 600;
+  s.sample(0, t);
+  const cols = 11, rows = 6, cw = width / cols, ch = height / rows;
+  noStroke();
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    fill((c + r) % 2 ? 17 : 217); rect(c * cw, r * ch, cw + 0.5, ch + 0.5);
+  }
   drawingContext.save();
-  drawingContext.beginPath();
-  drawingContext.arc(width / 2, height / 2, r, 0, Math.PI * 2);
-  drawingContext.clip();
-  image(layer, 0, 0);
+  fill(255); rect(0, 0, width, height);
+  drawingContext.globalCompositeOperation = 'destination-out';
+  const pts = [[.24,.35,0], [.48,.58,.7], [.7,.32,1.4], [.78,.72,2.1]];
+  for (const p of pts) {
+    const rad = lerp(8, min(width, height) * 0.28, (s.sample(p[2], t * 0.8) + 1) / 2);
+    circle(width * p[0], height * p[1], rad * 2);
+  }
   drawingContext.restore();
-  noFill(); stroke(0); strokeWeight(1.5); circle(width / 2, height / 2, r * 2);
+  noFill(); stroke(s.shifting ? '#f6a796' : 0); strokeWeight(1.5);
+  for (const p of pts) {
+    const rad = lerp(8, min(width, height) * 0.28, (s.sample(p[2], t * 0.8) + 1) / 2);
+    circle(width * p[0], height * p[1], rad * 2);
+  }
 }`)
   },
 
   {
-    id: "border-shift",
-    name: "Border Shift",
+    id: "gait-beetle",
+    name: "Gait Beetle",
     category: "layout",
-    role: "An edge dashes left/right: a frame that quietly orients the eye.",
-    tags: ["edge", "indicator"],
-    primitive: PRIMITIVES.wave,
-    reuse: "card edges",
-    notes: "Use along the top edge of an active card to indicate freshness or focus.",
-    draw(ctx, w, h, t) {
+    role: "A patrolling beetle whose gait switches mid-walk: shift rotates the underlying wave so it scurries, then crawls, then zig-zags.",
+    tags: ["shift", "edge", "gait"],
+    primitive: PRIMITIVES.sampler,
+    reuse: "active-card edges, focus indicators",
+    notes: "createSampler with shift: true keeps the marker but rotates the formula behind its motion. You can SEE the gait change. Faking this by hand means scheduling four animations to crossfade. Here it's one call.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
-      const v = norm(Waves.wave(0, { wave: "zig-zag sine", t: t * 0.8, amplitude: 1 }));
+      if (!state.sampler) {
+        state.sampler = Waves.createSampler({
+          shift: true,
+          shiftInterval: 2.5,
+          shiftDuration: 1,
+          group: "all",
+          amplitude: 1
+        });
+      }
+      const s = state.sampler;
+      const v = (s.sample(0, t * 1.0) + 1) / 2;
       const x = w * 0.08 + w * 0.84 * v;
       const cardX = w * 0.1;
       const cardW = w * 0.8;
@@ -1723,20 +2004,40 @@ function draw() {
       ctx.strokeRect(cardX, h * 0.2, cardW, h * 0.6);
       ctx.fillStyle = palette.ink;
       ctx.fillRect(cardX, h * 0.2 - 4, cardW, 4);
+      // beetle body
       ctx.fillStyle = palette.peach;
-      ctx.fillRect(x - 22, h * 0.2 - 6, 44, 8);
+      ctx.beginPath();
+      ctx.ellipse(x, h * 0.2 - 2, 22, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // legs
+      ctx.fillStyle = palette.ink;
+      for (let i = -2; i <= 2; i++) {
+        ctx.fillRect(x + i * 8 - 1, h * 0.2 - 12, 2, 4);
+      }
+      // antennae
+      ctx.fillRect(x - 8, h * 0.2 - 16, 2, 6);
+      ctx.fillRect(x + 6, h * 0.2 - 16, 2, 6);
+      label(ctx, "GAIT · " + s.waveName.toUpperCase(), 14, 18, s.shifting ? palette.peach : palette.ink, 11);
     },
     sketch: sketchTemplate(`
-function setup() { createCanvas(620, 320); }
+let s;
+function setup() {
+  createCanvas(620, 320); textFont('Oswald');
+  s = Waves.createSampler({ shift: true, shiftInterval: 2.5, shiftDuration: 1, group: 'all', amplitude: 1 });
+}
 function draw() {
   background(255);
-  const t = millis() / 1000;
-  const v = (Waves.wave(0, { wave: 'zig-zag sine', t: t * 0.8, amplitude: 1 }) + 1) / 2;
+  const v = (s.sample(0, millis() / 600 * 1.0) + 1) / 2;
   const x = width * 0.08 + width * 0.84 * v;
   fill(244); stroke(0); strokeWeight(1.5);
   rect(width * 0.1, height * 0.2, width * 0.8, height * 0.6);
   noStroke(); fill(0); rect(width * 0.1, height * 0.2 - 4, width * 0.8, 4);
-  fill(246, 167, 150); rect(x - 22, height * 0.2 - 6, 44, 8);
+  fill(246, 167, 150); ellipse(x, height * 0.2 - 2, 44, 16);
+  fill(0);
+  for (let i = -2; i <= 2; i++) rect(x + i * 8 - 1, height * 0.2 - 12, 2, 4);
+  rect(x - 8, height * 0.2 - 16, 2, 6); rect(x + 6, height * 0.2 - 16, 2, 6);
+  fill(s.shifting ? '#f6a796' : 0); textSize(11);
+  text('GAIT · ' + s.waveName.toUpperCase(), 14, 22);
 }`)
   },
 
@@ -1766,7 +2067,7 @@ function draw() {
       let x = (w - total) * 0.5;
       const baseY = h * 0.55;
       letters.forEach((l, i) => {
-        const v = state.sampler.sample(i * 0.25, t * 0.8);
+        const v = state.sampler.sample(i * 0.25, t * 1.0);
         ctx.fillStyle = palette.ink;
         ctx.fillText(l, x, baseY + v * 14);
         x += widths[i] + gap;
@@ -1780,7 +2081,7 @@ function setup() {
 }
 function draw() {
   background(255);
-  const t = millis() / 1000;
+  const t = millis() / 600;
   const txt = 'GENTLE   →   HARSH';
   textSize(46);
   const widths = txt.split('').map(l => textWidth(l));
@@ -1788,7 +2089,7 @@ function draw() {
   let x = (width - total) / 2;
   fill(0); textAlign(LEFT, CENTER);
   for (let i = 0; i < txt.length; i++) {
-    text(txt[i], x, height * 0.55 + s.sample(i * 0.25, t * 0.8) * 14);
+    text(txt[i], x, height * 0.55 + s.sample(i * 0.25, t * 1.0) * 14);
     x += widths[i] + 2;
   }
 }`)
@@ -1798,23 +2099,23 @@ function draw() {
     id: "cell-permission",
     name: "Cell Permission",
     category: "grid",
-    role: "A binary createGrid governs which cells are allowed to be on at all.",
-    tags: ["createGrid", "permission"],
-    primitive: PRIMITIVES.grid,
+    role: "Sum two samplers, threshold the result: which cells are allowed to be on.",
+    tags: ["sampler", "permission"],
+    primitive: PRIMITIVES.sampler,
     reuse: "state grids",
     notes: "Practical for dashboards, seat maps, active permissions, and matrix editors.",
-    state: { grid: null, cols: 16, rows: 7 },
+    state: { rowS: null, colS: null, cols: 16, rows: 7 },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
-      if (!state.grid) {
-        state.grid = Waves.createGrid(state.cols, state.rows, {
-          waveRow: "classic sine",
-          waveCol: "triangle",
-          threshold: 0.2,
-          speed: 0.5
-        });
+      if (!state.rowS) {
+        state.rowS = Waves.createSampler({ wave: "classic sine", range: [-1, 1] });
+        state.colS = Waves.createSampler({ wave: "triangle", range: [-1, 1] });
       }
-      const cells = state.grid.sample(t * 0.8);
+      const tt = t * 0.5;
+      const rowV = new Array(state.rows);
+      const colV = new Array(state.cols);
+      for (let r = 0; r < state.rows; r++) rowV[r] = state.rowS.sample(r, tt);
+      for (let c = 0; c < state.cols; c++) colV[c] = state.colS.sample(c, tt);
       const gap = 4;
       const cw = (w * 0.86 - gap * (state.cols - 1)) / state.cols;
       const ch = (h * 0.7 - gap * (state.rows - 1)) / state.rows;
@@ -1822,12 +2123,12 @@ function draw() {
       const sy = h * 0.15;
       for (let r = 0; r < state.rows; r++) {
         for (let c = 0; c < state.cols; c++) {
-          const v = cells[r * state.cols + c];
+          const on = (rowV[r] + colV[c]) >= 0.2;
           const x = sx + c * (cw + gap);
           const y = sy + r * (ch + gap);
-          ctx.fillStyle = v === 1 ? palette.ink : "#dadcde";
+          ctx.fillStyle = on ? palette.ink : "#dadcde";
           ctx.fillRect(x, y, cw, ch);
-          if (v === 1 && (c + r) % 5 === 0) {
+          if (on && (c + r) % 5 === 0) {
             ctx.fillStyle = palette.lemon;
             ctx.fillRect(x + cw * 0.25, y + ch * 0.25, cw * 0.5, ch * 0.5);
           }
@@ -1835,23 +2136,23 @@ function draw() {
       }
     },
     sketch: sketchTemplate(`
-let g;
+let rowS, colS;
 const COLS = 16, ROWS = 7;
 function setup() {
   createCanvas(620, 320); noStroke();
-  g = Waves.createGrid(COLS, ROWS, {
-    waveRow: 'classic sine', waveCol: 'triangle',
-    threshold: 0.2, speed: 0.5
-  });
+  rowS = Waves.createSampler({ wave: 'classic sine', range: [-1, 1] });
+  colS = Waves.createSampler({ wave: 'triangle', range: [-1, 1] });
 }
 function draw() {
   background(255);
-  const cells = g.sample(millis() / 1000 * 0.8);
+  const tt = millis() / 600 * 0.5;
+  const rowV = []; for (let r = 0; r < ROWS; r++) rowV.push(rowS.sample(r, tt));
+  const colV = []; for (let c = 0; c < COLS; c++) colV.push(colS.sample(c, tt));
   const gap = 4;
   const cw = (width * 0.86 - gap * (COLS - 1)) / COLS;
   const ch = (height * 0.7 - gap * (ROWS - 1)) / ROWS;
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
-    fill(cells[r * COLS + c] === 1 ? 0 : 218);
+    fill(rowV[r] + colV[c] >= 0.2 ? 0 : 218);
     rect(width * 0.07 + c * (cw + gap), height * 0.15 + r * (ch + gap), cw, ch);
   }
 }`)
@@ -1879,7 +2180,7 @@ function draw() {
       ctx.lineWidth = 1.6;
       ctx.beginPath();
       for (let x = 0; x <= w; x += step) {
-        const v = state.gentle.sample(x * 0.012, t * 0.8);
+        const v = state.gentle.sample(x * 0.012, t * 1.0);
         const y = h * 0.28 + v * halfH * 0.35;
         if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
@@ -1887,7 +2188,7 @@ function draw() {
       ctx.strokeStyle = palette.peach;
       ctx.beginPath();
       for (let x = 0; x <= w; x += step) {
-        const v = state.harsh.sample(x * 0.012, t * 0.8);
+        const v = state.harsh.sample(x * 0.012, t * 1.0);
         const y = h * 0.72 + v * halfH * 0.35;
         if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       }
@@ -1904,14 +2205,14 @@ function setup() {
 }
 function draw() {
   background(255);
-  const t = millis() / 1000;
+  const t = millis() / 600;
   strokeWeight(1.6); stroke(0);
   beginShape();
-  for (let x = 0; x <= width; x += 4) vertex(x, height * 0.28 + gentle.sample(x * 0.012, t * 0.8) * height * 0.15);
+  for (let x = 0; x <= width; x += 4) vertex(x, height * 0.28 + gentle.sample(x * 0.012, t * 1.0) * height * 0.15);
   endShape();
   stroke('#f6a796');
   beginShape();
-  for (let x = 0; x <= width; x += 4) vertex(x, height * 0.72 + harsh.sample(x * 0.012, t * 0.8) * height * 0.15);
+  for (let x = 0; x <= width; x += 4) vertex(x, height * 0.72 + harsh.sample(x * 0.012, t * 1.0) * height * 0.15);
   endShape();
 }`)
   },
@@ -1943,7 +2244,7 @@ function draw() {
       const baseY = h * 0.6;
       for (let i = 0; i < cols; i++) {
         const x = i * step;
-        state.ys[i] = baseY + state.sampler.sample(x, t * 0.3);
+        state.ys[i] = baseY + state.sampler.sample(x, t * 0.4);
       }
       ctx.fillStyle = palette.lilac;
       ctx.beginPath();
@@ -1975,9 +2276,9 @@ function setup() {
 }
 function draw() {
   background(255);
-  const t = millis() / 1000;
+  const t = millis() / 600;
   const baseY = height * 0.6;
-  for (let i = 0; i < ys.length; i++) ys[i] = baseY + s.sample(i * STEP, t * 0.3);
+  for (let i = 0; i < ys.length; i++) ys[i] = baseY + s.sample(i * STEP, t * 0.4);
   noStroke(); fill('#c8c3f1');
   beginShape();
   vertex(0, height);
@@ -2013,8 +2314,8 @@ function draw() {
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           // Quantise to keep fillStyle strings from blowing the cache
-          const hue = Math.round(state.hue.sample(c * 0.08 + r * 0.05, t * 0.3) / 4) * 4;
-          const bri = Math.round(state.bri.sample(c * 0.05 - r * 0.07, t * 0.3) / 2) * 2;
+          const hue = Math.round(state.hue.sample(c * 0.08 + r * 0.05, t * 0.4) / 4) * 4;
+          const bri = Math.round(state.bri.sample(c * 0.05 - r * 0.07, t * 0.4) / 2) * 2;
           ctx.fillStyle = `hsl(${hue},60%,${bri}%)`;
           ctx.fillRect(c * cw, r * ch, cw + 0.5, ch + 0.5);
         }
@@ -2030,10 +2331,10 @@ function setup() {
   briS = Waves.createSampler({ seed: 7, range: [62, 92] });
 }
 function draw() {
-  const t = millis() / 1000;
+  const t = millis() / 600;
   const cw = width / COLS, ch = height / ROWS;
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
-    fill(hueS.sample(c * 0.08 + r * 0.05, t * 0.3), 60, briS.sample(c * 0.05 - r * 0.07, t * 0.3));
+    fill(hueS.sample(c * 0.08 + r * 0.05, t * 0.4), 60, briS.sample(c * 0.05 - r * 0.07, t * 0.4));
     rect(c * cw, r * ch, cw + 0.5, ch + 0.5);
   }
 }`)
@@ -2234,7 +2535,7 @@ function setPreviewsPaused(paused) {
 }
 
 function drawActivePreviews(time) {
-  const t = time * 0.001;
+  const t = time / 600;
   cardRegistry.forEach(record => {
     if (!record.visible || !record.inViewport) return;
     const { ctx, w, h } = setupCanvas(record.canvas);
