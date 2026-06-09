@@ -1,6 +1,6 @@
 # p5.waves Visual Vocabulary
 
-This folder now contains a static visual-library prototype built from the curation brief, with 35 reusable wave-driven entries across motion, type, grid, color, texture, interface, state, and layout.
+This folder now contains a static visual-library prototype built from the curation brief, with 26 reusable wave-driven entries across motion, type, grid, color, texture, interface, state, and layout.
 
 Open `index.html` in a browser to browse the library. Each entry includes:
 
@@ -8,9 +8,9 @@ Open `index.html` in a browser to browse the library. Each entry includes:
 - a small reusable `p5.waves`-style code snippet
 - a short note explaining the graphic job
 - primitive/reuse badges, category tags, primitive filters, and search controls
-- a pause/resume control for the live previews
+- a pause/resume control and shared speed slider for the live previews
 
-The site is intentionally self-contained: `script.js` includes a small local wave sampler so the previews run without a server or package install. The snippets keep the brief's vocabulary visible through calls such as `Waves.wave()` and `sampler.sample()`.
+The site is intentionally lightweight: it loads `p5.waves` v3.3.0 directly and runs without a build step or package install. The snippets keep the brief's vocabulary visible through calls such as `Waves.wave()` and `sampler.sample()`.
 
 Preview canvases are only animated while their cards are visible in the viewport, which keeps the larger catalogue responsive as more modules are added.
 

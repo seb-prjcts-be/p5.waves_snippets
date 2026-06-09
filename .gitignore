@@ -4,3 +4,11 @@
 # OS metadata
 Thumbs.db
 .DS_Store
+
+# Internal project/AI-workflow metadata — not part of the public bib
+AI_RULES.md
+docs/
+info.json
+project.json
+site.json
+structure.json
