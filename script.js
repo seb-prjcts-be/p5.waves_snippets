@@ -1,4 +1,4 @@
-/* p5.waves visual vocabulary: uses real Waves.wave / createSampler (v3.3.0) */
+/* p5.waves visual vocabulary: uses real Waves.wave / createSampler (v3.4.0) */
 
 const palette = {
   ink: "#111213",
@@ -31,7 +31,9 @@ let accumulatedT = 0;
 let lastFrameTime = null;
 function getEffectiveT(time) {
   if (lastFrameTime !== null) {
-    const dt = (time - lastFrameTime) / 600;
+    // rAF timestamps can land a hair before an earlier performance.now() call;
+    // clamp so accumulatedT never dips negative
+    const dt = Math.max(0, time - lastFrameTime) / 600;
     accumulatedT += dt * timeSpeed;
   }
   lastFrameTime = time;
@@ -652,11 +654,11 @@ function draw() {
     id: "wave-shift-readout",
     name: "Wave Shift Readout",
     category: "state",
-    role: "Real sampler exposes waveName, targetName, mix: readable as a tool state.",
-    tags: ["sampler", "shift"],
+    role: "Real sampler exposes waveName, targetName, mix, period and targetPeriod: readable as a tool state.",
+    tags: ["sampler", "shift", "period"],
     primitive: PRIMITIVES.sampler,
     reuse: "tool readouts",
-    notes: "These getters are live: drop them into any UI to show which wave is active and where it's heading.",
+    notes: "These getters are live: drop them into any UI to show which wave is active and where it's heading. period reads the measured period of the current formula; non-periodic waves report null, shown here as an honest dash.",
     state: { sampler: null },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
@@ -687,6 +689,13 @@ function draw() {
       ctx.fillRect(barX, h * 0.7, barW * (s.mix || 0), 8);
       label(ctx, `mix ${(s.mix || 0).toFixed(2)}`, barX, h * 0.62, palette.ink, 12);
       label(ctx, s.shifting ? "SHIFTING" : "HELD", w * 0.78, h * 0.3, s.shifting ? palette.ink : palette.muted, 11);
+      const fmtPeriod = p => (p == null ? "—" : p.toFixed(2));
+      label(ctx, "PERIOD", barX, h * 0.3, palette.muted, 11);
+      label(
+        ctx,
+        s.shifting ? `${fmtPeriod(s.period)} -> ${fmtPeriod(s.targetPeriod)}` : fmtPeriod(s.period),
+        barX, h * 0.43, palette.ink, 14
+      );
     },
     sketch: sketchTemplate(`
 let s;
@@ -708,6 +717,10 @@ function draw() {
   fill(220); rect(bx, height * 0.7, bw, 8);
   fill(s.shifting ? '#f6a796' : '#c7e89c'); rect(bx, height * 0.7, bw * (s.mix || 0), 8);
   fill(0); textSize(12); text('mix ' + nf(s.mix || 0, 1, 2), bx, height * 0.62);
+  const fmt = p => (p == null ? '—' : nf(p, 1, 2));
+  fill(120); textSize(11); text('PERIOD', bx, height * 0.3);
+  fill(0); textSize(14);
+  text(s.shifting ? fmt(s.period) + ' -> ' + fmt(s.targetPeriod) : fmt(s.period), bx, height * 0.43);
 }`)
   },
 
@@ -717,7 +730,7 @@ function draw() {
     category: "motion",
     role: "wave: [a, b] + mix blends two formulas in one call. Here: sine ⟷ batman.",
     tags: ["morph", "mix"],
-    primitive: PRIMITIVES.wave,
+    primitive: PRIMITIVES.sampler,
     reuse: "transitions",
     notes: "A mix oscillator gives you a smooth crossfade between two characters of motion.",
     state: { sampler: null },
@@ -998,11 +1011,11 @@ function draw() {
     id: "drum-caterpillar",
     name: "Drum Caterpillar",
     category: "color",
-    role: "Twelve segments, twelve seeds: every tile picks its own wave and beats its own tempo. Nothing ever syncs.",
+    role: "Twelve segments, twelve seeds: every tile hashes its own wave from the catalogue and beats its own tempo.",
     tags: ["seed", "polyrhythm", "alpha"],
     primitive: PRIMITIVES.wave,
     reuse: "live data rows, status grids",
-    notes: "Per-tile seed hashes a different formula per segment. Twelve genuinely different rhythms from one call. Without the 34-wave catalogue you'd need twelve hand-tuned oscillators.",
+    notes: "Per-tile seed hashes into the 34-wave catalogue, so the segments decorrelate without hand-tuning. Without seed hashing you'd schedule twelve oscillators by hand.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       const count = 12;
@@ -1017,7 +1030,7 @@ function draw() {
         ctx.fillRect(startX + i * (cw + gap), h * 0.22, cw, h * 0.56);
       }
       ctx.globalAlpha = 1;
-      label(ctx, "12 SEEDS · 12 FORMULAS · 0 SYNC", w * 0.07, h * 0.92, palette.muted, 10);
+      label(ctx, "12 SEEDS · ONE CALL · NO SYNC", w * 0.07, h * 0.92, palette.muted, 10);
     },
     sketch: sketchTemplate(`
 function setup() { createCanvas(620, 320); noStroke(); }
@@ -1147,9 +1160,8 @@ function draw() {
       ctx.lineWidth = 3;
       ctx.beginPath();
       for (let x = 0; x <= w; x += 4) {
-        const a = Waves.wave(x * 0.02, { wave: s.waveName, t: t * 0.9, amplitude: 1 });
-        const b = Waves.wave(x * 0.02, { wave: s.targetName, t: t * 0.9, amplitude: 1 });
-        const v = lerp(a, b, mix);
+        // Native morph: wave [a, b] + mix blends the formulas inside the library
+        const v = Waves.wave(x * 0.02, { wave: [s.waveName, s.targetName], mix, t: t * 0.9, amplitude: 1 });
         if (x === 0) ctx.moveTo(x, mid + v * amp);
         else ctx.lineTo(x, mid + v * amp);
       }
@@ -1177,9 +1189,9 @@ function draw() {
   drawFormula(s.targetName, height * 0.78, '#f6a796', 180);
   noFill(); stroke(0); strokeWeight(3); beginShape();
   for (let x = 0; x <= width; x += 4) {
-    const a = Waves.wave(x * 0.02, { wave: s.waveName, t: t * 0.9, amplitude: 1 });
-    const b = Waves.wave(x * 0.02, { wave: s.targetName, t: t * 0.9, amplitude: 1 });
-    vertex(x, height * 0.52 + lerp(a, b, mix) * height * 0.12);
+    // Native morph: wave [a, b] + mix blends the formulas inside the library
+    const v = Waves.wave(x * 0.02, { wave: [s.waveName, s.targetName], mix, t: t * 0.9, amplitude: 1 });
+    vertex(x, height * 0.52 + v * height * 0.12);
   }
   endShape();
 }
@@ -1752,7 +1764,7 @@ function draw() {
     tags: ["group", "compare"],
     primitive: PRIMITIVES.sampler,
     reuse: "wave selection",
-    notes: "group: 'gentle' = 28 sines and curves; group: 'harsh' = 6 tan/noise/random formulas.",
+    notes: "group: 'gentle' pools the sines and curves; group: 'harsh' pools the tan/noise/random formulas. The pools are curated inside the library, so the comparison stays honest across versions.",
     state: { gentle: null, harsh: null },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
@@ -1807,30 +1819,31 @@ function draw() {
     id: "wild-terrain",
     name: "Wild Terrain",
     category: "texture",
-    role: "mode: 'wild' + unpredictability warps any wave: terrain-like irregular skyline.",
-    tags: ["wild", "terrain"],
+    role: "mode: 'wild' + a gentle-pool formula generate a frozen irregular skyline; the window slides along it like a terrain run.",
+    tags: ["wild", "terrain", "scroll", "group"],
     primitive: PRIMITIVES.sampler,
-    reuse: "skylines",
-    notes: "Wild mode is ~5× slower than stable: keep it off for 10k-point loops.",
+    reuse: "skylines, side-scrollers",
+    notes: "group: 'gentle' keeps tan/noise/random formulas out of the landscape, so the skyline stays bounded. The terrain itself is frozen (t stays 0): each reload picks a new gentle formula, then the window slides along it. Wild mode is ~5× slower than stable: keep it off for 10k-point loops.",
     state: { sampler: null, ys: null },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
       if (!state.sampler) {
         state.sampler = syncedSampler({
-          wave: "meta sine",
+          group: "gentle",     // no tan/noise formulas in the terrain pool
+          shift: true,         // pool pick at creation; frozen t holds it
           mode: "wild",
-          unpredictability: 0.5,
+          unpredictability: 0.4,
           amplitude: h * 0.35,
-          frequency: 0.012
+          frequency: 0.05
         });
       }
       const step = 4;
       const cols = Math.ceil(w / step) + 1;
       if (!state.ys || state.ys.length !== cols) state.ys = new Float32Array(cols);
       const baseY = h * 0.6;
+      const scroll = t * 60;   // terrain run: slide the window, keep the terrain frozen
       for (let i = 0; i < cols; i++) {
-        const x = i * step;
-        state.ys[i] = baseY + state.sampler.sample(x, t * 0.4);
+        state.ys[i] = baseY + state.sampler.sample(i * step + scroll, 0);
       }
       ctx.fillStyle = palette.lilac;
       ctx.beginPath();
@@ -1845,26 +1858,29 @@ function draw() {
       ctx.moveTo(0, state.ys[0]);
       for (let i = 1; i < cols; i++) ctx.lineTo(i * step, state.ys[i]);
       ctx.stroke();
+      label(ctx, "GENTLE · " + state.sampler.waveName.toUpperCase(), 14, 18, palette.muted, 11);
     },
     sketch: sketchTemplate(`
 let s, ys;
 const STEP = 4;
 function setup() {
-  createCanvas(620, 320);
+  createCanvas(620, 320); textFont('Oswald');
   s = Waves.createSampler({
-    wave: 'meta sine',
+    group: 'gentle',     // no tan/noise formulas in the terrain pool
+    shift: true,         // pool pick at creation; frozen t holds it
     mode: 'wild',
-    unpredictability: 0.5,
+    unpredictability: 0.4,
     amplitude: height * 0.35,
-    frequency: 0.012
+    frequency: 0.05
   });
   ys = new Float32Array(ceil(width / STEP) + 1);
 }
 function draw() {
   background(255);
-  const t = millis() / 600;
+  // terrain run: the terrain is frozen (t = 0), only the window slides
+  const scroll = millis() / 10;
   const baseY = height * 0.6;
-  for (let i = 0; i < ys.length; i++) ys[i] = baseY + s.sample(i * STEP, t * 0.4);
+  for (let i = 0; i < ys.length; i++) ys[i] = baseY + s.sample(i * STEP + scroll, 0);
   noStroke(); fill('#c8c3f1');
   beginShape();
   vertex(0, height);
@@ -1875,6 +1891,8 @@ function draw() {
   beginShape();
   for (let i = 0; i < ys.length; i++) vertex(i * STEP, ys[i]);
   endShape();
+  noStroke(); fill(120); textSize(11);
+  text('GENTLE · ' + s.waveName.toUpperCase(), 14, 22);
 }`)
   },
 
@@ -1930,15 +1948,375 @@ function draw() {
   fill(0, 0, 100); textSize(10);
   text(hueS.shifting ? hueS.waveName + ' -> ' + hueS.targetName : hueS.waveName, 12, height - 10);
 }`)
+  },
+
+  {
+    id: "closing-ring",
+    name: "Closing Ring",
+    category: "motion",
+    role: "group: 'closing' + sampler.period sweep an exact number of periods around a loop: the ring stays seamless while the formula shifts.",
+    tags: ["closing", "period", "shift", "ring"],
+    primitive: PRIMITIVES.sampler,
+    reuse: "badges, dials, loop masks",
+    notes: "Only the closing pool keeps its periods aligned, so shift can morph the formula without tearing the seam. sampler.period is what locks the sweep to an integer number of lobes; the dot marks where start and end meet.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.panel);
+      if (!state.sampler) {
+        state.sampler = syncedSampler({ shift: true, group: "closing", range: [-1, 1] });
+      }
+      const s = state.sampler;
+      s.sample(0, t);
+      const P = s.period || Math.PI * 2;
+      const LOBES = 5;
+      const N = 180;
+      const cx = w * 0.5;
+      const cy = h * 0.52;
+      const R0 = Math.min(w, h) * 0.3;
+      const A = Math.min(w, h) * 0.13;
+      ctx.strokeStyle = palette.ink;
+      ctx.lineWidth = 2;
+      ctx.fillStyle = palette.mint;
+      ctx.beginPath();
+      for (let i = 0; i <= N; i++) {
+        const a = (i / N) * Math.PI * 2 - Math.PI / 2;
+        const u = (i / N) * P * LOBES;
+        const r = R0 + s.sample(u, t * 0.8) * A;
+        const x = cx + Math.cos(a) * r;
+        const y = cy + Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.globalAlpha = 0.5;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.stroke();
+      const r0 = R0 + s.sample(0, t * 0.8) * A;
+      ctx.fillStyle = s.shifting ? palette.peach : palette.ink;
+      ctx.beginPath(); ctx.arc(cx, cy - r0, 5, 0, Math.PI * 2); ctx.fill();
+      label(ctx, s.shifting ? `${s.waveName} -> ${s.targetName}` : s.waveName, 14, 18, palette.muted, 11);
+      label(ctx, `period ${P.toFixed(2)} × ${LOBES}`, 14, h - 12, palette.muted, 10);
+    },
+    sketch: sketchTemplate(`
+let s;
+const N = 180, LOBES = 5;
+function setup() {
+  createCanvas(620, 320); textFont('Oswald');
+  s = Waves.createSampler({ shift: true, group: 'closing', range: [-1, 1] });
+}
+function draw() {
+  background(255);
+  const t = millis() / 600;
+  s.sample(0, t);
+  const P = s.period || TWO_PI;          // measured period of active wave
+  const R0 = height * 0.3, A = height * 0.13;
+  noFill(); stroke(0); strokeWeight(2);
+  push(); translate(width / 2, height * 0.52);
+  beginShape();
+  for (let i = 0; i <= N; i++) {
+    const a = (i / N) * TWO_PI - HALF_PI;
+    const u = (i / N) * P * LOBES;       // integer # of periods -> closes seamlessly
+    const r = R0 + s.sample(u, t * 0.8) * A;
+    vertex(cos(a) * r, sin(a) * r);
+  }
+  endShape(CLOSE);
+  pop();
+  noStroke(); fill(0); textSize(11);
+  text(s.shifting ? s.waveName + ' -> ' + s.targetName : s.waveName, 14, 22);
+  text('period ' + nf(P, 1, 2) + ' × ' + LOBES, 14, height - 12);
+}`)
+  },
+
+  {
+    id: "seam-compare",
+    name: "Seam Compare",
+    category: "state",
+    role: "Same shifting sampler, two sweep laws: a fixed sweep tears at the seam, a period-locked sweep closes clean.",
+    tags: ["closing", "period", "compare", "seam"],
+    primitive: PRIMITIVES.sampler,
+    reuse: "explaining loops, QA of closed shapes",
+    notes: "Left sweeps a fixed span of wave-x, so the loop ends mid-formula and jumps. Right sweeps sampler.period × 4, an exact number of periods, so start and end meet. The Δ readout measures each seam live.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.panel);
+      if (!state.sampler) {
+        state.sampler = syncedSampler({ shift: true, group: "closing", range: [-1, 1] });
+      }
+      const s = state.sampler;
+      s.sample(0, t);
+      const P = s.period || Math.PI * 2;
+      const N = 140;
+      const R0 = Math.min(w, h) * 0.26;
+      const A = Math.min(w, h) * 0.1;
+      const rings = [
+        { cx: w * 0.27, span: 10, lbl: "FIXED SWEEP", col: palette.peach },
+        { cx: w * 0.73, span: P * 4, lbl: "PERIOD × 4", col: palette.mint }
+      ];
+      rings.forEach(ring => {
+        ctx.strokeStyle = palette.ink;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i <= N; i++) {
+          const a = (i / N) * Math.PI * 2 - Math.PI / 2;
+          const r = R0 + s.sample((i / N) * ring.span, t * 0.8) * A;
+          const x = ring.cx + Math.cos(a) * r;
+          const y = h * 0.52 + Math.sin(a) * r;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+        const seam = Math.abs(s.sample(0, t * 0.8) - s.sample(ring.span, t * 0.8)) * A;
+        ctx.fillStyle = ring.col;
+        ctx.beginPath(); ctx.arc(ring.cx, h * 0.52 - (R0 + s.sample(0, t * 0.8) * A), 5, 0, Math.PI * 2); ctx.fill();
+        label(ctx, `${ring.lbl} · Δ ${seam.toFixed(1)}px`, ring.cx - 52, h * 0.95, palette.ink, 10);
+      });
+      label(ctx, s.shifting ? `${s.waveName} -> ${s.targetName}` : s.waveName, 14, 18, palette.muted, 11);
+    },
+    sketch: sketchTemplate(`
+let s;
+const N = 140, R0 = 80, A = 32;
+function setup() {
+  createCanvas(620, 320); textFont('Oswald');
+  s = Waves.createSampler({ shift: true, group: 'closing', range: [-1, 1] });
+}
+function draw() {
+  background(255);
+  const t = millis() / 600;
+  s.sample(0, t);
+  const P = s.period || TWO_PI;
+  drawRing(width * 0.27, 10, 'FIXED SWEEP');       // arbitrary span -> visible seam
+  drawRing(width * 0.73, P * 4, 'PERIOD × 4');     // integer periods -> seamless
+  noStroke(); fill(120); textSize(11);
+  text(s.shifting ? s.waveName + ' -> ' + s.targetName : s.waveName, 14, 22);
+}
+function drawRing(cx, span, lbl) {
+  const t = millis() / 600;
+  noFill(); stroke(0); strokeWeight(2);
+  beginShape();
+  for (let i = 0; i <= N; i++) {
+    const a = (i / N) * TWO_PI - HALF_PI;
+    const r = R0 + s.sample((i / N) * span, t * 0.8) * A;
+    vertex(cx + cos(a) * r, height * 0.52 + sin(a) * r);
+  }
+  endShape(CLOSE);
+  const seam = abs(s.sample(0, t * 0.8) - s.sample(span, t * 0.8)) * A;
+  noStroke(); fill(0); textSize(10);
+  text(lbl + ' · Δ ' + nf(seam, 1, 1) + 'px', cx - 48, height * 0.95);
+}`)
+  },
+
+  {
+    id: "period-tile",
+    name: "Period-Locked Tile",
+    category: "texture",
+    role: "sampler.period fits an exact number of periods into one tile, so the band repeats seamlessly — even while the formula shifts.",
+    tags: ["closing", "period", "tile", "pattern"],
+    primitive: PRIMITIVES.sampler,
+    reuse: "repeating borders, exportable patterns",
+    notes: "Each tile samples the same u-range of two whole periods, so tile edges meet by construction. The closing pool keeps periods commensurate, so shift swaps the motif without breaking tileability; the seam Δ readout stays at zero.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.paper);
+      if (!state.sampler) {
+        state.sampler = syncedSampler({ shift: true, group: "closing", range: [-1, 1] });
+      }
+      const s = state.sampler;
+      s.sample(0, t);
+      const P = s.period || Math.PI * 2;
+      const PERIODS = 2, TILES = 3, N = 64;
+      const tileW = w / TILES;
+      const baseY = h * 0.55;
+      const A = h * 0.22;
+      ctx.fillStyle = palette.sky;
+      ctx.beginPath();
+      ctx.moveTo(0, h);
+      for (let tile = 0; tile < TILES; tile++) {
+        for (let i = 0; i <= N; i++) {
+          const u = (i / N) * P * PERIODS;     // same u-range per tile
+          const x = tile * tileW + (i / N) * tileW;
+          ctx.lineTo(x, baseY + s.sample(u, t * 0.7) * A);
+        }
+      }
+      ctx.lineTo(w, h);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = palette.ink;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      for (let tile = 1; tile < TILES; tile++) {
+        ctx.beginPath(); ctx.moveTo(tile * tileW, 0); ctx.lineTo(tile * tileW, h); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      const seam = Math.abs(s.sample(0, t * 0.7) - s.sample(P * PERIODS, t * 0.7)) * A;
+      label(ctx, `TILE × ${TILES} · seam Δ ${seam.toFixed(2)}px`, 12, 18, palette.ink, 11);
+      label(ctx, s.shifting ? `${s.waveName} -> ${s.targetName}` : s.waveName, 12, h - 12, palette.muted, 10);
+    },
+    sketch: sketchTemplate(`
+let s;
+const PERIODS = 2, TILES = 3, N = 64;
+function setup() {
+  createCanvas(620, 320); textFont('Oswald');
+  s = Waves.createSampler({ shift: true, group: 'closing', range: [-1, 1] });
+}
+function draw() {
+  background(244);
+  const t = millis() / 600;
+  s.sample(0, t);
+  const P = s.period || TWO_PI;
+  const tileW = width / TILES, baseY = height * 0.55, A = height * 0.22;
+  noStroke(); fill('#b8d2ff');
+  beginShape();
+  vertex(0, height);
+  for (let tile = 0; tile < TILES; tile++) {
+    for (let i = 0; i <= N; i++) {
+      const u = (i / N) * P * PERIODS;       // same u-range per tile -> seamless repeat
+      vertex(tile * tileW + (i / N) * tileW, baseY + s.sample(u, t * 0.7) * A);
+    }
+  }
+  vertex(width, height);
+  endShape(CLOSE);
+  stroke(0); strokeWeight(1);
+  for (let tile = 1; tile < TILES; tile++) line(tile * tileW, 0, tile * tileW, height);
+  const seam = abs(s.sample(0, t * 0.7) - s.sample(P * PERIODS, t * 0.7)) * A;
+  noStroke(); fill(0); textSize(11);
+  text('TILE × ' + TILES + ' · seam Δ ' + nf(seam, 1, 2) + 'px', 12, 20);
+  fill(120); textSize(10);
+  text(s.shifting ? s.waveName + ' -> ' + s.targetName : s.waveName, 12, height - 10);
+}`)
+  },
+
+  {
+    id: "seed-vs-index",
+    name: "Seed vs Index",
+    category: "state",
+    role: "The same number, two meanings: seed: 3 hashes into the catalogue, wave: 3 picks formula #3 exactly.",
+    tags: ["seed", "index", "teaching"],
+    primitive: PRIMITIVES.wave,
+    reuse: "API teaching, debugging",
+    notes: "Waves.wave(x, { seed: 3 }) and Waves.wave(x, { wave: 3 }) are different questions: seed wants consistent variety, index wants one exact formula. The index name is read from Waves.list() at runtime, so the card never lies about the catalogue.",
+    draw(ctx, w, h, t) {
+      clear(ctx, w, h, palette.panel);
+      const rows = [
+        { y: h * 0.32, opts: { seed: 3 }, lbl: "{ seed: 3 } → hashed pick", col: palette.ink },
+        { y: h * 0.74, opts: { wave: 3 }, lbl: `{ wave: 3 } → ${Waves.list()[3].name}`, col: palette.peach }
+      ];
+      rows.forEach(row => {
+        ctx.strokeStyle = row.col;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let x = 0; x <= w; x += 2) {
+          // x * 0.2 sweeps ~2 base periods, so square's flanks are visible
+          const v = Waves.wave(x * 0.2, { ...row.opts, t: t * 0.9, amplitude: 1 });
+          const y = row.y + v * h * 0.14;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        label(ctx, row.lbl, 14, row.y - h * 0.18, palette.muted, 11);
+      });
+    },
+    sketch: sketchTemplate(`
+function setup() { createCanvas(620, 320); textFont('Oswald'); noFill(); }
+function draw() {
+  background(255);
+  const t = millis() / 600;
+  drawRow(height * 0.32, { seed: 3 }, '{ seed: 3 } -> hashed pick', 0);
+  drawRow(height * 0.74, { wave: 3 }, '{ wave: 3 } -> ' + Waves.list()[3].name, '#f6a796');
+}
+function drawRow(y, opts, lbl, col) {
+  stroke(col); strokeWeight(2); noFill();
+  beginShape();
+  for (let x = 0; x <= width; x += 2) {
+    // x * 0.2 sweeps ~2 base periods, so square's flanks are visible
+    vertex(x, y + Waves.wave(x * 0.2, { ...opts, t: millis() / 600 * 0.9, amplitude: 1 }) * height * 0.14);
+  }
+  endShape();
+  noStroke(); fill(120); textSize(11); text(lbl, 14, y - height * 0.18 + 8);
+}`)
+  },
+
+  {
+    id: "wave-atlas",
+    name: "Wave Atlas",
+    category: "grid",
+    role: "Waves.list() draws the whole catalogue as live thumbnails; the spotlight walks every formula by name.",
+    tags: ["list", "catalogue", "atlas"],
+    primitive: PRIMITIVES.wave,
+    reuse: "pickers, documentation",
+    notes: "The roster comes from Waves.list() and Waves.count at runtime: when the library grows, this card grows with it. Only the spotlighted cell animates, the rest stay frozen — the catalogue as a browsable grid.",
+    state: { list: null },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.panel);
+      if (!state.list) state.list = Waves.list();
+      const list = state.list;
+      const cols = 9;
+      const rows = Math.ceil(list.length / cols);
+      const cw = w / cols;
+      const ch = (h - 26) / rows;
+      // positive modulo: JS % returns negatives for negative t
+      const hot = ((Math.floor(t / 1.5) % list.length) + list.length) % list.length;
+      list.forEach((entry, i) => {
+        const cx = (i % cols) * cw;
+        const cy = Math.floor(i / cols) * ch;
+        if (i === hot) {
+          ctx.fillStyle = palette.lemon;
+          ctx.fillRect(cx, cy, cw, ch);
+        }
+        ctx.strokeStyle = i === hot ? palette.ink : palette.muted;
+        ctx.lineWidth = i === hot ? 1.6 : 1;
+        ctx.beginPath();
+        const N = 48;
+        for (let k = 0; k <= N; k++) {
+          // frequency: 10 squeezes ~a full base period into each thumbnail
+          const v = Waves.wave((k / N) * 6, { wave: entry.index, frequency: 10, t: i === hot ? t : 0, amplitude: 1 });
+          const x = cx + 3 + (k / N) * (cw - 6);
+          const y = cy + ch / 2 + v * ch * 0.32;
+          if (k === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      });
+      label(ctx, `${Waves.count} WAVES · #${list[hot].index} ${list[hot].name.toUpperCase()}`, 12, h - 10, palette.ink, 11);
+    },
+    sketch: sketchTemplate(`
+let list;
+const COLS = 9;
+function setup() {
+  createCanvas(620, 320); textFont('Oswald');
+  list = Waves.list();          // runtime roster: grows with the library
+}
+function draw() {
+  background(255);
+  const t = millis() / 600;
+  const rows = ceil(list.length / COLS);
+  const cw = width / COLS, ch = (height - 26) / rows;
+  const hot = floor(t / 1.5) % list.length;
+  for (let i = 0; i < list.length; i++) {
+    const cx = (i % COLS) * cw, cy = floor(i / COLS) * ch;
+    if (i === hot) { noStroke(); fill('#f3e679'); rect(cx, cy, cw, ch); }
+    stroke(i === hot ? 0 : 150); strokeWeight(i === hot ? 1.6 : 1); noFill();
+    beginShape();
+    for (let k = 0; k <= 48; k++) {
+      // frequency: 10 squeezes ~a full base period into each thumbnail
+      const v = Waves.wave(k / 48 * 6, { wave: list[i].index, frequency: 10, t: i === hot ? t : 0, amplitude: 1 });
+      vertex(cx + 3 + k / 48 * (cw - 6), cy + ch / 2 + v * ch * 0.32);
+    }
+    endShape();
+  }
+  noStroke(); fill(0); textSize(11);
+  text(Waves.count + ' WAVES · #' + list[hot].index + ' ' + list[hot].name.toUpperCase(), 12, height - 8);
+}`)
   }
 ];
 
 /* ---------- runnable sketch template ---------- */
 function sketchTemplate(body) {
-  return `// p5.js 2.x + p5.waves v3.3.0
+  return `// p5.js 2.x + p5.waves v3.4.0
 // CDN:
 // <script src="https://cdn.jsdelivr.net/npm/p5@2.2.3/lib/p5.min.js"></script>
-// <script src="https://cdn.jsdelivr.net/gh/seb-prjcts-be/p5.waves@v3.3.0/p5.waves.min.js"></script>
+// <script src="https://cdn.jsdelivr.net/gh/seb-prjcts-be/p5.waves@v3.4.0/p5.waves.min.js"></script>
 ${body.trim()}
 `;
 }
@@ -1982,10 +2360,28 @@ const viewportObserver = "IntersectionObserver" in window
   : null;
 
 function appendTag(row, text, className = "") {
-  const tag = document.createElement("span");
+  const tag = document.createElement("button");
+  tag.type = "button";
   tag.className = ["tag", className].filter(Boolean).join(" ");
   tag.textContent = text;
   row.appendChild(tag);
+  return tag;
+}
+
+/* Tag chips act as shortcuts into the existing controls:
+ * a term tag fills the search box, the primitive chip flips the primitive
+ * filter. Scroll back to the controls so the effect is visible. */
+function searchFor(term) {
+  searchInput.value = term;
+  filterLibrary();
+  document.querySelector(".control-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function activatePrimitive(value) {
+  activePrimitiveFilter = value;
+  primitiveButtons.forEach(item => item.classList.toggle("is-active", item.dataset.primitive === value));
+  filterLibrary();
+  document.querySelector(".control-panel").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function renderLibrary() {
@@ -2002,9 +2398,13 @@ function renderLibrary() {
     node.querySelector(".notes").textContent = module.notes;
     node.querySelector("code").textContent = module.sketch;
     const metaRow = node.querySelector(".meta-row");
-    appendTag(metaRow, module.primitive, "tag-primitive");
-    appendTag(metaRow, `USE · ${module.reuse}`, "tag-reuse");
-    module.tags.forEach(tag => appendTag(metaRow, tag));
+    appendTag(metaRow, module.primitive, "tag-primitive")
+      .addEventListener("click", () => activatePrimitive(module.primitive));
+    appendTag(metaRow, `USE · ${module.reuse}`, "tag-reuse")
+      .addEventListener("click", () => searchFor(module.reuse));
+    module.tags.forEach(tag => {
+      appendTag(metaRow, tag).addEventListener("click", () => searchFor(tag));
+    });
     node.querySelector(".copy-button").addEventListener("click", evt => {
       copySnippet(evt.currentTarget, node.querySelector("code"), module.sketch);
     });

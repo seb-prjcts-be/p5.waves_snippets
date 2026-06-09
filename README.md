@@ -1,6 +1,6 @@
 # p5.waves Visual Vocabulary
 
-This folder now contains a static visual-library prototype built from the curation brief, with 26 reusable wave-driven entries across motion, type, grid, color, texture, interface, state, and layout.
+This folder now contains a static visual-library prototype built from the curation brief, with 31 reusable wave-driven entries across motion, type, grid, color, texture, interface, state, and layout.
 
 Open `index.html` in a browser to browse the library. Each entry includes:
 
@@ -10,7 +10,7 @@ Open `index.html` in a browser to browse the library. Each entry includes:
 - primitive/reuse badges, category tags, primitive filters, and search controls
 - a pause/resume control and shared speed slider for the live previews
 
-The site is intentionally lightweight: it loads `p5.waves` v3.3.0 directly and runs without a build step or package install. The snippets keep the brief's vocabulary visible through calls such as `Waves.wave()` and `sampler.sample()`.
+The site is intentionally lightweight: it loads `p5.waves` v3.4.0 directly (CSP-safe, eval-free build) and runs without a build step or package install. The snippets keep the brief's vocabulary visible through calls such as `Waves.wave()` and `sampler.sample()`.
 
 Preview canvases are only animated while their cards are visible in the viewport, which keeps the larger catalogue responsive as more modules are added.
 
@@ -30,5 +30,7 @@ Strong specimens should make at least one `p5.waves`-specific feature visible or
 - `seed` for many distinct behaviours from one call pattern
 - sampler reuse for related samples that share state
 - comparison between wave formulas or wave families
+- `group: 'closing'` + `sampler.period` for seamless loops and repeatable tiles
+- `Waves.list()` / `Waves.count` for runtime self-documentation
 
 The `Arc Value Label` card is the current model for this approach: the path stays fixed, but a shifting sampler changes how the marker travels between `< 0`, `0`, and `> 0`. The visible concept depends on the wave dialect, `waveName`, and `targetName`, not just on a label moving from left to right.

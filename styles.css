@@ -528,6 +528,11 @@ canvas {
   font-size: 0.7rem;
   font-weight: 500;
   letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.tag:hover {
+  border-color: var(--ink);
 }
 
 .tag-primitive {
