@@ -1,4 +1,4 @@
-/* p5.waves visual vocabulary: uses real Waves.wave / createSampler (v3.4.0) */
+/* p5.waves visual vocabulary: uses real Waves.wave / createSampler (v3.6.0) */
 
 const palette = {
   ink: "#111213",
@@ -1015,7 +1015,7 @@ function draw() {
     tags: ["seed", "polyrhythm", "alpha"],
     primitive: PRIMITIVES.wave,
     reuse: "live data rows, status grids",
-    notes: "Per-tile seed hashes into the 34-wave catalogue, so the segments decorrelate without hand-tuning. Without seed hashing you'd schedule twelve oscillators by hand.",
+    notes: "Per-tile seed hashes into the 35-wave catalogue, so the segments decorrelate without hand-tuning. Without seed hashing you'd schedule twelve oscillators by hand.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       const count = 12;
@@ -2188,6 +2188,214 @@ function draw() {
   },
 
   {
+    id: "ghost-ring",
+    name: "Ghost Ring",
+    category: "motion",
+    role: "group: 'ghost' pools the closing waves that stay readable as delayed echoes: one sampler, four moments of t, one trailing ring.",
+    tags: ["ghost", "closing", "echo", "delay"],
+    primitive: PRIMITIVES.sampler,
+    reuse: "loaders, trails, afterimage accents",
+    notes: "Each echo re-samples the same ring at t minus a delay, so the ghosts are the same formula a beat ago — no history buffer. The ghost pool (v3.5.0) curates the closing waves whose shape survives overlapping copies; during a shift the oldest echo still shows the previous formula.",
+    state: { sampler: null },
+    draw(ctx, w, h, t, state) {
+      clear(ctx, w, h, palette.panel);
+      if (!state.sampler) {
+        state.sampler = syncedSampler({ shift: true, group: "ghost", range: [-1, 1] });
+      }
+      const s = state.sampler;
+      s.sample(0, t);
+      const P = s.period || Math.PI * 2;
+      const LOBES = 4;
+      const N = 140;
+      const cx = w * 0.5;
+      const cy = h * 0.52;
+      const R0 = Math.min(w, h) * 0.28;
+      const A = Math.min(w, h) * 0.14;
+      const echoes = [
+        { dt: 0.9, alpha: 0.16, col: palette.sky },
+        { dt: 0.6, alpha: 0.3, col: palette.sky },
+        { dt: 0.3, alpha: 0.5, col: palette.sky },
+        { dt: 0, alpha: 1, col: palette.ink }
+      ];
+      echoes.forEach(echo => {
+        ctx.strokeStyle = echo.col;
+        ctx.globalAlpha = echo.alpha;
+        ctx.lineWidth = echo.dt === 0 ? 2 : 1.6;
+        ctx.beginPath();
+        for (let i = 0; i <= N; i++) {
+          const a = (i / N) * Math.PI * 2 - Math.PI / 2;
+          const u = (i / N) * P * LOBES;
+          const r = R0 + s.sample(u, (t - echo.dt) * 0.8) * A;
+          const x = cx + Math.cos(a) * r;
+          const y = cy + Math.sin(a) * r;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      });
+      ctx.globalAlpha = 1;
+      s.sample(0, t);
+      label(ctx, s.shifting ? `${s.waveName} -> ${s.targetName}` : s.waveName, 14, 18, palette.muted, 11);
+      label(ctx, "ghost pool · echoes at t − 0.3 · 0.6 · 0.9", 14, h - 12, palette.muted, 10);
+    },
+    sketch: sketchTemplate(`
+let s;
+const N = 140, LOBES = 4;
+function setup() {
+  createCanvas(620, 320); textFont('Oswald');
+  s = Waves.createSampler({ shift: true, group: 'ghost', range: [-1, 1] });
+}
+function draw() {
+  background(255);
+  const t = millis() / 600;
+  s.sample(0, t);
+  const P = s.period || TWO_PI;          // ghost pool is period-locked (closing)
+  const R0 = height * 0.28, A = height * 0.14;
+  push(); translate(width / 2, height * 0.52);
+  for (const dt of [0.9, 0.6, 0.3, 0]) { // oldest echo first, live ring last
+    stroke(dt ? color(184, 210, 255, 255 * (1 - dt * 0.8)) : 0);
+    strokeWeight(dt ? 1.6 : 2); noFill();
+    beginShape();
+    for (let i = 0; i <= N; i++) {
+      const a = (i / N) * TWO_PI - HALF_PI;
+      const r = R0 + s.sample((i / N) * P * LOBES, (t - dt) * 0.8) * A;
+      vertex(cos(a) * r, sin(a) * r);
+    }
+    endShape(CLOSE);
+  }
+  pop();
+  s.sample(0, t);
+  noStroke(); fill(0); textSize(11);
+  text(s.shifting ? s.waveName + ' -> ' + s.targetName : s.waveName, 14, 22);
+  fill(120); textSize(10);
+  text('ghost pool · echoes at t - 0.3 / 0.6 / 0.9', 14, height - 12);
+}`)
+  },
+
+  {
+    id: "shake-out-nudge",
+    name: "Shake Out Nudge",
+    category: "interface",
+    role: "wave: 'shake out' (v3.6.0) is a mirrored log-chirp: a burst of shake that calms down and comes back every period — a built-in attention nudge.",
+    tags: ["shake out", "chirp", "nudge", "notification"],
+    primitive: PRIMITIVES.wave,
+    reuse: "attention nudges, error shakes, reminder badges",
+    notes: "shake out replaced fade out at index 22 in v3.6.0: the old chirp died out once, this one repeats on an exact period (62.83 in wave-x), so the nudge re-fires on schedule with no timer code. The playhead below shows where the badge sits inside one period.",
+    draw(ctx, w, h, t) {
+      clear(ctx, w, h, palette.panel);
+      const PERIOD = 62.8319;
+      const u = t * 6;
+      const v = Waves.wave(u, { wave: "shake out", amplitude: 1 });
+      const bw = 150, bh = 42;
+      const bx = w / 2 + v * 14 - bw / 2;
+      const by = h * 0.24;
+      ctx.fillStyle = Math.abs(v) > 0.3 ? palette.peach : palette.lemon;
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeStyle = palette.ink;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx, by, bw, bh);
+      label(ctx, "1 REMINDER", bx + 30, by + bh / 2, palette.ink, 13);
+      const baseY = h * 0.72;
+      ctx.strokeStyle = palette.ink;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += 2) {
+        const wv = Waves.wave((x / w) * PERIOD, { wave: "shake out", amplitude: 1 });
+        const y = baseY + wv * h * 0.14;
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      const px = ((u % PERIOD) / PERIOD) * w;
+      ctx.strokeStyle = palette.peach;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(px, baseY - h * 0.17); ctx.lineTo(px, baseY + h * 0.17); ctx.stroke();
+      label(ctx, "wave 22 · shake out · period 62.83", 14, 18, palette.muted, 11);
+      label(ctx, "the shake returns every cycle — fade out died once", 14, h - 12, palette.muted, 10);
+    },
+    sketch: sketchTemplate(`
+const PERIOD = 62.8319;              // shake out's exact period (2π / 0.1)
+function setup() { createCanvas(620, 320); textFont('Oswald'); }
+function draw() {
+  background(255);
+  const t = millis() / 600;
+  const u = t * 6;
+  const v = Waves.wave(u, { wave: 'shake out', amplitude: 1 });
+  // shaking badge: offset comes straight from the wave, no timer code
+  const bx = width / 2 + v * 14;
+  fill(abs(v) > 0.3 ? '#f6a796' : '#f3e679');
+  stroke(0); strokeWeight(2); rect(bx - 75, height * 0.24, 150, 42);
+  noStroke(); fill(0); textSize(13); text('1 REMINDER', bx - 44, height * 0.24 + 26);
+  // one full period as a portrait, with a playhead
+  const baseY = height * 0.72;
+  stroke(0); strokeWeight(1.5); noFill();
+  beginShape();
+  for (let x = 0; x <= width; x += 2) {
+    vertex(x, baseY + Waves.wave(x / width * PERIOD, { wave: 'shake out', amplitude: 1 }) * height * 0.14);
+  }
+  endShape();
+  stroke('#f6a796'); strokeWeight(2);
+  const px = (u % PERIOD) / PERIOD * width;
+  line(px, baseY - height * 0.17, px, baseY + height * 0.17);
+  noStroke(); fill(120); textSize(11);
+  text('wave 22 · shake out · period 62.83 — returns every cycle', 14, 20);
+}`)
+  },
+
+  {
+    id: "spike-pop",
+    name: "Spike Pop",
+    category: "type",
+    role: "wave: ['classic sine', 'spike sine'] morphs an emphasis ripple from always-moving to one-letter-pops: spike sine (v3.5.0) rests flat, then peaks.",
+    tags: ["spike sine", "morph", "emphasis", "lettering"],
+    primitive: PRIMITIVES.wave,
+    reuse: "emphasis ripples, menu hovers, karaoke text",
+    notes: "spike sine is sin⁵: long flat valleys with one narrow smooth peak, so most letters sit still while one pops — plain sine keeps everything moving at once. The mix is the design decision: how sharp should emphasis be? It is gentle and period-locked, so the ripple loops clean.",
+    draw(ctx, w, h, t) {
+      clear(ctx, w, h, palette.panel);
+      const WORD = "EMPHASIS";
+      const PERIOD = 62.8319;
+      const mix = (Math.sin(t * 0.5) + 1) / 2;
+      const step = PERIOD / WORD.length;   // one wave period across the word
+      const cw = (w * 0.8) / WORD.length;
+      ctx.font = "700 40px Oswald, Inter, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      for (let i = 0; i < WORD.length; i++) {
+        const v = Waves.wave(i * step, { wave: ["classic sine", "spike sine"], mix, t: t * 4, amplitude: 1 });
+        ctx.fillStyle = v > 0.55 ? palette.peach : palette.ink;
+        ctx.fillText(WORD[i], w * 0.1 + (i + 0.5) * cw, h * 0.56 - Math.max(0, v) * h * 0.12);
+      }
+      ctx.textAlign = "left";
+      label(ctx, `mix ${mix.toFixed(2)} · 0 = classic sine · 1 = spike sine`, 14, 18, palette.muted, 11);
+      label(ctx, "sin⁵ rests flat, then peaks — one letter at a time", 14, h - 12, palette.muted, 10);
+    },
+    sketch: sketchTemplate(`
+const WORD = 'EMPHASIS';
+const PERIOD = 62.8319;              // spike sine's period: one ripple per word
+function setup() {
+  createCanvas(620, 320); textFont('Oswald'); textAlign(CENTER, BASELINE);
+}
+function draw() {
+  background(255);
+  const t = millis() / 600;
+  const mix = (sin(t * 0.5) + 1) / 2;  // 0 = classic sine, 1 = spike sine
+  const step = PERIOD / WORD.length;
+  const cw = width * 0.8 / WORD.length;
+  textSize(40); textStyle(BOLD);
+  for (let i = 0; i < WORD.length; i++) {
+    const v = Waves.wave(i * step, { wave: ['classic sine', 'spike sine'], mix, t: t * 4, amplitude: 1 });
+    fill(v > 0.55 ? '#f6a796' : 17);
+    text(WORD[i], width * 0.1 + (i + 0.5) * cw, height * 0.56 - max(0, v) * height * 0.12);
+  }
+  textSize(11); textStyle(NORMAL); textAlign(LEFT, BASELINE); fill(120);
+  text('mix ' + nf(mix, 1, 2) + ' · 0 = classic sine · 1 = spike sine', 14, 20);
+  textAlign(CENTER, BASELINE);
+}`)
+  },
+
+  {
     id: "seed-vs-index",
     name: "Seed vs Index",
     category: "state",
@@ -2313,10 +2521,10 @@ function draw() {
 
 /* ---------- runnable sketch template ---------- */
 function sketchTemplate(body) {
-  return `// p5.js 2.x + p5.waves v3.4.0
+  return `// p5.js 2.x + p5.waves v3.6.0
 // CDN:
 // <script src="https://cdn.jsdelivr.net/npm/p5@2.2.3/lib/p5.min.js"></script>
-// <script src="https://cdn.jsdelivr.net/gh/seb-prjcts-be/p5.waves@v3.4.0/p5.waves.min.js"></script>
+// <script src="https://cdn.jsdelivr.net/gh/seb-prjcts-be/p5.waves@v3.6.0/p5.waves.min.js"></script>
 ${body.trim()}
 `;
 }
