@@ -726,54 +726,156 @@ function draw() {
 
   {
     id: "morph-crossfade",
-    name: "Morph Crossfade",
+    name: "Motion Audition",
     category: "motion",
-    role: "wave: [a, b] + mix blends two formulas in one call. Here: sine ⟷ batman.",
-    tags: ["morph", "mix"],
+    role: "An easing picker over the whole catalogue: Waves.list() supplies the candidates, mix auditions the blend, and the spec line is the deliverable.",
+    tags: ["morph", "mix", "easing", "list", "picker"],
     primitive: PRIMITIVES.sampler,
-    reuse: "transitions",
-    notes: "A mix oscillator gives you a smooth crossfade between two characters of motion.",
-    state: { sampler: null },
+    reuse: "easing choice, motion reviews, design tooling",
+    notes: "The pair comes from Waves.list() at runtime — the preview walks new pairings every reel, the sketch picks them with arrow keys. Lane A and B are the pure formulas, the middle lane is the blend, and the chip rides it: the blend applied to a real element. The reel ends on a verdict — SHIP IT — and the spec line below is a complete, paste-ready options object.",
+    state: { sampler: null, pairKey: "" },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
-      if (!state.sampler) {
-        state.sampler = syncedSampler({
-          wave: ["classic sine", "batman"],
-          amplitude: 1
-        });
+      const CHOSEN = 0.5;      // the blend the reel approves
+      const HOLD = 1.5;        // t-units per reel step
+      const LANE_FREQ = 0.02;  // wave cycles across a lane
+      const LANE_AMP = 0.1;    // lane wave height (fraction of h)
+      const CHIP_FREQ = 2.2;   // how fast the chip reads its lane
+      const CHIP_AMP = 0.16;   // chip travel (fraction of h)
+      const REEL = [0, 0.25, 0.5, 0.75, 1, "verdict"];
+      // candidates come from the runtime catalogue: a new pairing every reel
+      const list = Waves.list();
+      const cycle = Math.max(0, Math.floor(t / (HOLD * REEL.length)));
+      const ia = ((cycle * 5 + 1) % list.length + list.length) % list.length;
+      const ib = (ia + 9) % list.length;
+      const key = `${ia}-${ib}`;
+      if (state.pairKey !== key) {
+        state.pairKey = key;
+        state.sampler = syncedSampler({ wave: [ia, ib], amplitude: 1 });  // pick by index
       }
-      const mix = (Math.sin(t * 1.0) + 1) / 2;
-      const amp = h * 0.32;
+      const s = state.sampler;
+      const A = list[ia].name, B = list[ib].name;
+      // audition reel: hold each mix step, glide to the next, end on a verdict
+      const cy = t / HOLD;
+      const idx = ((Math.floor(cy) % REEL.length) + REEL.length) % REEL.length;
+      const frac = cy - Math.floor(cy);
+      const verdict = REEL[idx] === "verdict";
+      let mix;
+      if (verdict) {
+        mix = CHOSEN;
+      } else {
+        const next = REEL[(idx + 1) % REEL.length];
+        const to = next === "verdict" ? CHOSEN : next;
+        const g = clamp((frac - 0.7) / 0.3, 0, 1);
+        mix = lerp(REEL[idx], to, g * g * (3 - 2 * g));
+      }
+      const lanes = [
+        { y: h * 0.22, mix: 0, lbl: A, wgt: 1.2, col: palette.muted },
+        { y: h * 0.5, mix, lbl: `mix ${mix.toFixed(2)}`, wgt: 2.4, col: palette.ink },
+        { y: h * 0.78, mix: 1, lbl: B, wgt: 1.2, col: palette.muted }
+      ];
+      lanes.forEach(lane => {
+        ctx.strokeStyle = lane.col;
+        ctx.lineWidth = lane.wgt;
+        ctx.beginPath();
+        for (let x = 0; x <= w * 0.8; x += 3) {
+          const y = lane.y + s.sample(x * LANE_FREQ, t, lane.mix) * h * LANE_AMP;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        label(ctx, lane.lbl, 14, lane.y - h * 0.12, lane.col, 10);
+      });
+      // the blend applied to a real element: a chip riding the middle lane's motion.
+      // On approval it snaps to rest and checks off — the audition pays out.
+      const chipY = h * 0.5 + s.sample(t * CHIP_FREQ, t, mix) * h * CHIP_AMP * (verdict ? 0 : 1);
+      ctx.fillStyle = verdict ? palette.mint : palette.lemon;
       ctx.strokeStyle = palette.ink;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      for (let x = 0; x <= w; x += 3) {
-        const y = state.sampler.sample(x * 0.02, t * 1.0, mix) * amp;
-        if (x === 0) ctx.moveTo(x, h * 0.5 + y);
-        else ctx.lineTo(x, h * 0.5 + y);
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(w * 0.86, chipY - 9, 34, 18);
+      ctx.strokeRect(w * 0.86, chipY - 9, 34, 18);
+      label(ctx, verdict ? "✓" : "UI", w * 0.885, chipY, palette.ink, verdict ? 13 : 10);
+      // verdict stamp: the audition has an outcome
+      if (verdict) {
+        ctx.save();
+        ctx.translate(w * 0.4, h * 0.5);
+        ctx.rotate(-0.12);
+        ctx.strokeStyle = palette.peach;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-74, -20, 148, 40);
+        ctx.fillStyle = palette.peach;
+        ctx.font = "700 20px Oswald, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("SHIP IT", 0, 0);
+        ctx.restore();
+        ctx.textAlign = "left";
       }
-      ctx.stroke();
-      label(ctx, `mix ${mix.toFixed(2)}  sine → batman`, 14, h - 18, palette.ink, 12);
+      // two deliverables: the p5.waves options AND a portable CSS linear() easing
+      // (linear() allows non-monotonic stops, so a wobble/bounce blend is valid CSS)
+      const css = "linear(" + Array.from({ length: 7 }, (_, k) =>
+        norm(s.sample((k / 6) * 40, t, mix)).toFixed(2)).join(", ") + ")";
+      ctx.fillStyle = verdict ? palette.mint : palette.lemon;
+      ctx.fillRect(0, h - 32, w, 32);
+      ctx.fillStyle = palette.ink;
+      ctx.font = "10px 'JetBrains Mono', monospace";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`{ wave: ['${A}', '${B}'], mix: ${mix.toFixed(2)} }${verdict ? "  // approved" : ""}`, 12, h - 22);
+      ctx.fillText(`transition-timing-function: ${css};`, 12, h - 9);
     },
     sketch: sketchTemplate(`
-let s;
+let s, list, ia, ib;
 function setup() {
-  createCanvas(620, 320); noFill();
-  s = Waves.createSampler({ wave: ['classic sine', 'batman'], amplitude: 1 });
+  createCanvas(620, 320); textFont('Oswald');
+  list = Waves.list();          // the whole catalogue is the casting pool
+  ia = 0; ib = 18;              // starting pair: classic sine x triangle
+  rebuild();
+}
+function rebuild() { s = Waves.createSampler({ wave: [ia, ib], amplitude: 1 }); }
+function keyPressed() {
+  // arrows recast the audition from Waves.list()
+  if (keyCode === LEFT_ARROW)  { ia = (ia + list.length - 1) % list.length; rebuild(); }
+  if (keyCode === RIGHT_ARROW) { ia = (ia + 1) % list.length; rebuild(); }
+  if (keyCode === DOWN_ARROW)  { ib = (ib + list.length - 1) % list.length; rebuild(); }
+  if (keyCode === UP_ARROW)    { ib = (ib + 1) % list.length; rebuild(); }
 }
 function draw() {
   background(255);
-  const t = millis() / 600;
-  const mix = (sin(t * 1.0) + 1) / 2;
-  const amp = height * 0.32;
-  stroke(0); strokeWeight(2);
+  const mix = constrain(mouseX / width, 0, 1);   // drag horizontally to audition
+  const approved = mouseIsPressed;               // hold mouse to approve this blend
+  const A = list[ia].name, B = list[ib].name;
+  drawLane(height * 0.22, 0, A + '  (\\u2190/\\u2192)', color(150), 1.2);
+  drawLane(height * 0.5, mix, 'mix ' + nf(mix, 1, 2), color(0), 2.4);
+  drawLane(height * 0.78, 1, B + '  (\\u2193/\\u2191)', color(150), 1.2);
+  // the blend applied to a real element; on approval it snaps to rest and checks off
+  const chipY = height * 0.5 + s.sample(millis() / 600 * 2.2, millis() / 600, mix) * height * 0.16 * (approved ? 0 : 1);
+  fill(approved ? '#c7e89c' : '#f3e679'); stroke(0); strokeWeight(1.5);
+  rect(width * 0.86, chipY - 12, 48, 24);
+  noStroke(); fill(0); textSize(approved ? 15 : 11); text(approved ? '\\u2713' : 'UI', width * 0.878 + 14, chipY + 5);
+  if (approved) {                                // the audition has an outcome
+    push(); translate(width * 0.4, height * 0.5); rotate(-0.12);
+    noFill(); stroke('#f6a796'); strokeWeight(4); rect(-90, -26, 180, 52);
+    noStroke(); fill('#f6a796'); textSize(26); textAlign(CENTER, CENTER); text('SHIP IT', 0, 0);
+    pop(); textAlign(LEFT, BASELINE);
+  }
+  // two copy-ready deliverables: p5.waves options AND a portable CSS linear() easing
+  // (linear() allows non-monotonic stops, so a wobble/bounce blend exports cleanly)
+  let css = 'linear(';
+  for (let k = 0; k <= 6; k++) css += ((s.sample(k / 6 * 40, millis() / 600, mix) + 1) / 2).toFixed(2) + (k < 6 ? ', ' : '');
+  css += ')';
+  noStroke(); fill(approved ? '#c7e89c' : '#f3e679'); rect(0, height - 34, width, 34);
+  fill(0); textSize(11);
+  text("{ wave: ['" + A + "', '" + B + "'], mix: " + nf(mix, 1, 2) + ' }' + (approved ? '  // approved' : ''), 12, height - 21);
+  text('transition-timing-function: ' + css + ';', 12, height - 8);
+}
+function drawLane(y, mix, lbl, col, wgt) {
+  stroke(col); strokeWeight(wgt); noFill();
   beginShape();
-  for (let x = 0; x <= width; x += 3) {
-    vertex(x, height / 2 + s.sample(x * 0.02, t * 1.0, mix) * amp);
+  for (let x = 0; x <= width * 0.8; x += 3) {
+    vertex(x, y + s.sample(x * 0.02, millis() / 600, mix) * height * 0.1);
   }
   endShape();
-  noStroke(); fill(0); textSize(12);
-  text('mix ' + nf(mix, 1, 2) + '  sine → batman', 14, height - 14);
+  noStroke(); fill(col); textSize(10); text(lbl, 14, y - height * 0.12 + 6);
 }`)
   },
 
@@ -1049,73 +1151,148 @@ function draw() {
 
   {
     id: "notification-rhythm",
-    name: "Alert Rhythm Dial",
+    name: "Alert Forecast",
     category: "interface",
-    role: "A shifting sampler changes alert cadence: the UI shows when the rhythm is held and when it is morphing.",
-    tags: ["shift", "pulse", "notification"],
+    role: "The one thing a timer cannot do: SHOW the schedule. Because the wave is deterministic, the strip renders alerts before they fire — you watch them approach NOW and can scrub ahead.",
+    tags: ["shift", "forecast", "lookahead", "onCue"],
     primitive: PRIMITIVES.sampler,
-    reuse: "alerts",
-    notes: "Alert states become more useful when the cadence can change families. The card reads waveName, targetName, shifting and mix directly from the sampler.",
-    state: { sampler: null },
+    reuse: "alert previews, timeline scrubbing, ambient status",
+    notes: "A setTimeout fires blind; this makes the schedule visible. sample(0, t + lookahead) reads the future in one call, so the next crossings are drawn as pings marching toward NOW — the whole value is seeing and scrubbing what is coming, which no timer offers. Each crossing that reaches NOW calls onCue(), wired to a toast here; swap your own handler in one line. A shift retunes the cadence, rewriting the visible future in place.",
+    state: { sampler: null, toasts: null, wasFiring: false, cueCount: 0 },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
       if (!state.sampler) {
-        state.sampler = syncedSampler({
-          shift: true,
-          shiftInterval: 2.4,
-          shiftDuration: 0.7,
-          group: "all",
-          range: [-1, 1]
-        });
+        state.sampler = syncedSampler({ shift: true, group: "all", range: [0, 1] });
+        state.toasts = [];
       }
       const s = state.sampler;
-      const v = norm(s.sample(0, t * 1.2));
-      const cx = w * 0.32;
-      const cy = h * 0.5;
-      ctx.strokeStyle = palette.line;
+      const TH = 0.74;              // cue threshold
+      const HORIZON = 6;            // t-units of visible future
+      const SPEED = 1.1;            // schedule tempo
+      const NOW_X = w * 0.2;        // where the future arrives
+      const yOf = v => h * 0.84 - v * h * 0.46;
+      // pass 1: sample the future, collect cue positions
+      const curve = [];
+      const cues = [];
+      let prev = s.sample(0, t * SPEED);
+      for (let x = NOW_X; x <= w; x += 2) {
+        const ahead = ((x - NOW_X) / (w - NOW_X)) * HORIZON;
+        const v = s.sample(0, (t + ahead) * SPEED);
+        curve.push([x, yOf(v)]);
+        if (prev < TH && v >= TH) cues.push(x);
+        prev = v;
+      }
+      // pass 2: draw curve, threshold, cues
+      ctx.strokeStyle = palette.ink;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      curve.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+      ctx.stroke();
+      ctx.strokeStyle = palette.muted;
       ctx.lineWidth = 1;
-      for (let i = 0; i < 4; i++) {
-        ctx.beginPath();
-        ctx.arc(cx, cy, 34 + i * 18 + v * 14, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      ctx.fillStyle = s.shifting ? palette.lemon : palette.peach;
-      ctx.globalAlpha = 0.35 + v * 0.45;
-      ctx.beginPath(); ctx.arc(cx, cy, 32 + v * 24, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = s.shifting ? palette.ink : palette.peach;
-      ctx.beginPath(); ctx.arc(cx, cy, 24, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = palette.panel;
-      ctx.font = "600 14px Oswald, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("12", cx, cy);
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(NOW_X, yOf(TH)); ctx.lineTo(w, yOf(TH)); ctx.stroke();
+      ctx.setLineDash([]);
+      cues.forEach(x => {
+        ctx.fillStyle = palette.peach;
+        ctx.beginPath(); ctx.arc(x, yOf(TH) - 8, 5, 0, Math.PI * 2); ctx.fill();
+      });
+      // NOW line; a cue reaching NOW fires onCue -> the toast consumer
+      const TOAST = { w: 116, h: 18, life: 2.4, max: 3 };   // toast cosmetics
+      const firing = s.sample(0, t * SPEED) >= TH;
+      if (firing && !state.wasFiring) state.toasts.push({ t0: t, name: s.waveName });   // onCue()
+      state.wasFiring = firing;
+      state.toasts = state.toasts.filter(toast => t - toast.t0 < TOAST.life).slice(-TOAST.max);
+      ctx.strokeStyle = palette.ink;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(NOW_X, h * 0.1); ctx.lineTo(NOW_X, h * 0.9); ctx.stroke();
+      // bell badge at NOW, swells when a cue is firing
+      ctx.fillStyle = firing ? palette.peach : palette.line;
+      ctx.beginPath(); ctx.arc(NOW_X, h * 0.2, firing ? 13 : 10, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = palette.ink;
+      ctx.font = "600 12px Oswald, sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("!", NOW_X, h * 0.2);
       ctx.textAlign = "left";
-      label(ctx, s.shifting ? "CADENCE SHIFT" : "HELD ALERT", w * 0.46, cy - 24, palette.ink, 14);
-      label(ctx, s.waveName.toUpperCase(), w * 0.46, cy + 2, palette.muted, 12);
-      if (s.shifting) {
-        label(ctx, "TO " + s.targetName.toUpperCase(), w * 0.46, cy + 24, palette.muted, 12);
-        ctx.fillStyle = palette.line;
-        ctx.fillRect(w * 0.46, cy + 38, w * 0.34, 4);
+      state.toasts.forEach((toast, i) => {
+        const age = t - toast.t0;
+        const slide = Math.min(1, age * 4);
+        const alpha = age > TOAST.life - 0.6 ? Math.max(0, (TOAST.life - age) / 0.6) : 1;
+        const tx = w * 0.03 + (slide - 1) * 40;
+        const ty = h * 0.34 + i * (TOAST.h + 5);
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = palette.peach;
+        ctx.fillRect(tx, ty, TOAST.w, TOAST.h);
         ctx.fillStyle = palette.ink;
-        ctx.fillRect(w * 0.46, cy + 38, w * 0.34 * s.mix, 4);
-      }
+        ctx.font = "600 9px Oswald, sans-serif";
+        ctx.textBaseline = "middle";
+        ctx.fillText(`● ${toast.name}`, tx + 6, ty + TOAST.h / 2);
+        ctx.globalAlpha = 1;
+      });
+      label(ctx, "NOW", NOW_X - 13, h * 0.96, palette.ink, 10);
+      label(ctx, `TH ${TH}`, w - 44, yOf(TH) - 8, palette.muted, 9);
+      label(ctx, `temperament: ${s.waveName}`, w * 0.42, 18, palette.muted, 11);
+      if (s.shifting) label(ctx, `forecast rewriting -> ${s.targetName}`, w * 0.42, h - 12, palette.peach, 10);
+      else label(ctx, `${cues.length} alerts on the horizon`, w * 0.42, h - 12, palette.muted, 10);
     },
     sketch: sketchTemplate(`
-let s;
+let s, toasts = [], wasFiring = false;
+const TH = 0.74;       // alert threshold
+const HORIZON = 6;     // t-units of visible future
+const SPEED = 1.1;     // schedule tempo
 function setup() {
   createCanvas(620, 320); textFont('Oswald');
-  s = Waves.createSampler({ shift: true, shiftInterval: 2.4, shiftDuration: 0.7, group: 'all', range: [-1, 1] });
+  s = Waves.createSampler({ shift: true, group: 'all', range: [0, 1] });
+}
+const nowX = () => width * 0.2;
+const yOf = v => height * 0.84 - v * height * 0.46;
+// the integration point: swap this for your own handler (autosave, sound, badge…)
+function onCue(name, t) { toasts.push({ t0: t, name }); }
+// the wave IS the schedule: read the next HORIZON t-units, collect crossings
+function forecast(t) {
+  const curve = [], cues = [];
+  let prev = s.sample(0, t * SPEED);
+  for (let x = nowX(); x <= width; x += 2) {
+    const v = s.sample(0, (t + (x - nowX()) / (width - nowX()) * HORIZON) * SPEED);
+    curve.push([x, yOf(v)]);
+    if (prev < TH && v >= TH) cues.push(x);   // an alert will fire here
+    prev = v;
+  }
+  return { curve, cues };
+}
+function drawToasts(t) {
+  toasts = toasts.filter(o => t - o.t0 < 2.4).slice(-3);
+  noStroke();
+  toasts.forEach((o, i) => {
+    const age = t - o.t0, x = width * 0.03 + (min(1, age * 4) - 1) * 60, y = height * 0.34 + i * 30;
+    fill(246, 167, 150, age > 1.8 ? map(age, 1.8, 2.4, 255, 0) : 255);
+    rect(x, y, 150, 24);
+    fill(0); textSize(11); text('● ' + o.name, x + 8, y + 16);
+  });
 }
 function draw() {
   background(255);
-  const v = (s.sample(0, millis() / 600 * 1.2) + 1) / 2;
-  const cx = width * 0.32, cy = height / 2;
-  noFill(); stroke(220); for (let i = 0; i < 4; i++) circle(cx, cy, 68 + i * 36 + v * 28);
-  noStroke(); fill(s.shifting ? '#111213' : '#f6a796'); circle(cx, cy, 48);
-  fill(255); textSize(14); textAlign(CENTER, CENTER); text('12', cx, cy);
-  textAlign(LEFT, BASELINE); fill(0); text(s.shifting ? 'CADENCE SHIFT' : 'HELD ALERT', width * 0.46, cy - 20);
-  fill(120); text(s.waveName.toUpperCase(), width * 0.46, cy + 4);
+  const scrub = mouseIsPressed ? map(mouseX, 0, width, 0, HORIZON) : 0;   // drag to scrub
+  const t = millis() / 600 + scrub;
+  const { curve, cues } = forecast(t);
+  // the forecast curve, threshold and upcoming alert markers
+  noFill(); stroke(0); strokeWeight(1.6);
+  beginShape(); for (const [x, y] of curve) vertex(x, y); endShape();
+  stroke(150); line(nowX(), yOf(TH), width, yOf(TH));
+  noStroke(); fill('#f6a796');
+  for (const x of cues) circle(x, yOf(TH) - 8, 10);
+  stroke(0); line(nowX(), height * 0.1, nowX(), height * 0.9);   // NOW
+  const firing = s.sample(0, t * SPEED) >= TH;
+  if (firing && !wasFiring) onCue(s.waveName, t);   // a crossing reaches NOW
+  wasFiring = firing;
+  noStroke(); fill(firing ? '#f6a796' : 220); circle(nowX(), height * 0.2, firing ? 28 : 22);
+  fill(0); textSize(13); textAlign(CENTER, CENTER); text('!', nowX(), height * 0.2);
+  textAlign(LEFT, BASELINE);
+  drawToasts(t);
+  fill(120); textSize(11);
+  text('temperament: ' + s.waveName, width * 0.42, 20);
+  text(s.shifting ? 'forecast rewriting -> ' + s.targetName : cues.length + ' alerts on the horizon', width * 0.42, height - 10);
+  if (mouseIsPressed) text('scrubbing +' + nf(scrub, 1, 1) + 't', width * 0.42, height - 26);
 }`)
   },
 
@@ -1298,124 +1475,282 @@ function drawType(t, s) {
 
   {
     id: "rhythmic-divider",
-    name: "Divider Family Shift",
+    name: "Self-Naming Divider",
     category: "layout",
-    role: "A divider whose dash behaviour changes formula family while preserving the same mark system.",
-    tags: ["divider", "shift", "dashes"],
+    role: "drawDivider(y, caption, periods): a reusable section rule that stays perfectly level at any density because it sweeps whole sampler.period cycles — the ends are twins by construction.",
+    tags: ["divider", "closing", "period", "waveName", "system"],
     primitive: PRIMITIVES.sampler,
-    reuse: "section breaks",
-    notes: "The divider is a small proof of reusable behaviour: only the sampler shifts, while the marks keep their layout contract.",
+    reuse: "section breaks, chapter ornaments, print rules",
+    notes: "The value is the self-leveling rule: whole periods make the first and last dash identical, so one drawDivider() call drops a balanced ornament at any width or density — three stacked here, print-ready under noLoop(). The flourish: leave caption null and the rule signs itself with waveName, and each letter rides the very formula it names, so the caption surfs its own wave while a shift changes the name over on s.mix.",
     state: { sampler: null },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
       if (!state.sampler) {
-        state.sampler = syncedSampler({ shift: true, shiftInterval: 2.2, shiftDuration: 0.8, group: "all", amplitude: 1, frequency: 1 });
+        state.sampler = syncedSampler({ shift: true, group: "closing", range: [-1, 1] });
       }
       const s = state.sampler;
       s.sample(0, t);
-      const dashes = 24;
-      const dx = w * 0.88 / dashes;
-      const startX = w * 0.06;
-      const y = h * 0.5;
-      for (let i = 0; i < dashes; i++) {
-        const v = s.sample(i * 0.4, t * 1.0);
-        const lift = v * 18;
-        const thick = lerp(2, 12, norm(v));
-        ctx.fillStyle = s.shifting && i % 3 === 0 ? palette.peach : palette.ink;
-        ctx.fillRect(startX + i * dx, y + lift - thick / 2, dx * 0.68, thick);
-      }
-      label(ctx, s.shifting ? `${s.waveName} -> ${s.targetName}` : s.waveName, 14, 20, palette.muted, 11);
+      const P = s.period || Math.PI * 2;
+      const MARKS = 30;              // dashes per rule
+      const GAP = [0.36, 0.64];      // caption window (fractions of span)
+      const THICK = [2, 12];         // dash thickness range in px
+      const span = w * 0.86, sx = w * 0.07;
+      let delta = 0;
+      // the reusable unit: one rule, one caption, one density
+      const drawDivider = (y, caption, periods) => {
+        let first = 0, last = 0;
+        for (let i = 0; i < MARKS; i++) {
+          const u = i / (MARKS - 1);
+          const v = s.sample(u * P * periods, t * 0.6);
+          if (i === 0) first = v;
+          if (i === MARKS - 1) last = v;
+          if (u > GAP[0] && u < GAP[1]) continue;   // hold room for the caption
+          const thick = lerp(THICK[0], THICK[1], norm(v));
+          ctx.fillStyle = s.shifting ? palette.peach : palette.ink;
+          ctx.fillRect(sx + u * span, y - thick / 2, 3, thick);
+        }
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(sx + GAP[0] * span, y - 11, (GAP[1] - GAP[0]) * span, 22);
+        ctx.clip();
+        ctx.font = "600 11px Oswald, Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        // caption surfs its own rule: each letter lifts by the wave sampled at its x
+        const STEP = 7;   // px per letter
+        const surf = (text, baseY, col) => {
+          const str = `· ${text} ·`;
+          const startX = w / 2 - (str.length - 1) * STEP / 2;
+          ctx.fillStyle = col;
+          for (let k = 0; k < str.length; k++) {
+            const lx = startX + k * STEP;
+            const lift = s.sample((lx - sx) / span * P * periods, t * 0.6) * 6;
+            ctx.fillText(str[k], lx, baseY + lift);
+          }
+        };
+        const cap = caption || s.waveName;
+        if (s.shifting && !caption) {
+          const slide = s.mix * 22;   // changeover rides the live morph
+          surf(cap, y + slide, palette.ink);
+          surf(s.targetName, y - 22 + slide, palette.peach);
+        } else {
+          surf(cap, y, palette.ink);
+        }
+        ctx.restore();
+        ctx.textAlign = "left";
+        return Math.abs(first - last) * THICK[1];
+      };
+      // paragraphs part while the naming rule changes over
+      const part = s.shifting ? Math.sin(s.mix * Math.PI) * h * 0.035 : 0;
+      ctx.fillStyle = palette.line;
+      ctx.fillRect(w * 0.07, h * 0.1, w * 0.8, 4);
+      ctx.fillRect(w * 0.07, h * 0.38 - part, w * 0.86, 4);
+      ctx.fillRect(w * 0.07, h * 0.62 + part, w * 0.7, 4);
+      ctx.fillRect(w * 0.07, h * 0.9, w * 0.75, 4);
+      drawDivider(h * 0.24, "interlude", 1);   // custom caption, sparse
+      delta = drawDivider(h * 0.5, null, 2);   // signs itself
+      drawDivider(h * 0.76, "coda", 3);        // custom caption, dense
+      label(ctx, `ends Δ ${delta.toFixed(2)}px`, 14, h - 8, palette.muted, 9);
     },
     sketch: sketchTemplate(`
 let s;
+const MARKS = 30;            // dashes per rule
+const GAP = [0.36, 0.64];    // caption window (fractions of span)
+const THICK = [2, 12];       // dash thickness range in px
 function setup() {
   createCanvas(620, 320); textFont('Oswald'); noStroke();
-  s = Waves.createSampler({ shift: true, shiftInterval: 2.2, shiftDuration: 0.8, group: 'all', amplitude: 1, frequency: 1 });
+  s = Waves.createSampler({ shift: true, group: 'closing', range: [-1, 1] });
+  // static print: call noLoop() and draw once with a fixed t
 }
 function draw() {
   background(255);
-  const t = millis() / 600, n = 24;
+  const t = millis() / 600;
   s.sample(0, t);
-  const dx = width * 0.88 / n, sx = width * 0.06, y = height / 2;
-  for (let i = 0; i < n; i++) {
-    const v = s.sample(i * 0.4, t * 1.0);
-    const thick = lerp(2, 12, (v + 1) / 2);
-    fill(s.shifting && i % 3 === 0 ? '#f6a796' : 0);
-    rect(sx + i * dx, y + v * 18 - thick / 2, dx * 0.68, thick);
+  // paragraphs part while the naming rule changes over
+  const part = s.shifting ? sin(s.mix * PI) * height * 0.035 : 0;
+  fill(220);
+  rect(width * 0.07, height * 0.1, width * 0.8, 4);
+  rect(width * 0.07, height * 0.38 - part, width * 0.86, 4);
+  rect(width * 0.07, height * 0.62 + part, width * 0.7, 4);
+  rect(width * 0.07, height * 0.9, width * 0.75, 4);
+  drawDivider(height * 0.24, 'interlude', 1);   // custom caption, sparse
+  drawDivider(height * 0.5, null, 2);           // null -> signs itself with waveName
+  drawDivider(height * 0.76, 'coda', 3);        // custom caption, dense
+}
+// the reusable unit: one rule, one caption, one density
+function drawDivider(y, caption, periods) {
+  const t = millis() / 600;
+  const P = s.period || TWO_PI;
+  const span = width * 0.86, sx = width * 0.07;
+  for (let i = 0; i < MARKS; i++) {
+    const u = i / (MARKS - 1);
+    const v = s.sample(u * P * periods, t * 0.6);   // whole periods -> level ends
+    if (u > GAP[0] && u < GAP[1]) continue;
+    const thick = lerp(THICK[0], THICK[1], (v + 1) / 2);
+    fill(s.shifting ? '#f6a796' : 0);
+    rect(sx + u * span, y - thick / 2, 3, thick);
   }
-  fill(120); textSize(11); text(s.shifting ? s.waveName + ' -> ' + s.targetName : s.waveName, 14, 22);
+  const cap = caption || s.waveName;
+  textSize(12); textAlign(CENTER, CENTER);
+  // caption surfs its own rule: each letter lifts by the wave sampled at its x
+  const surf = (txt, baseY, col) => {
+    const str = '· ' + txt + ' ·', STEP = 7;
+    const startX = width / 2 - (str.length - 1) * STEP / 2;
+    fill(col);
+    for (let k = 0; k < str.length; k++) {
+      const lx = startX + k * STEP;
+      const lift = s.sample((lx - sx) / span * P * periods, t * 0.6) * 6;
+      text(str[k], lx, baseY + lift);
+    }
+  };
+  if (s.shifting && !caption) {
+    const slide = s.mix * 22;      // changeover rides the live morph
+    surf(cap, y + slide, 0);
+    surf(s.targetName, y - 22 + slide, color('#f6a796'));
+  } else {
+    surf(cap, y, 0);
+  }
+  textAlign(LEFT, BASELINE);
 }`)
   },
 
   {
     id: "cursor-echo",
-    name: "Pointer Phase Echo",
+    name: "Live Connector",
     category: "motion",
-    role: "A trail keeps its spacing, but the sampler shifts the motion formula underneath each echo.",
-    tags: ["shift", "trail", "echo"],
+    role: "drawConnector(a, b, calm) draws a validated node-graph edge: drag speed is the connection's tension, and a reckless drop is rejected as invalid — the wave carries the feedback.",
+    tags: ["mix", "gentle", "harsh", "connector", "validation"],
     primitive: PRIMITIVES.sampler,
-    reuse: "pointer feedback",
-    notes: "The point path is not stored keyframes. A single shifting sampler draws phase echoes, then changes gait without changing the trail code.",
-    state: { sampler: null },
+    reuse: "node editors, flow builders, link validation",
+    notes: "The reusable job: one drawConnector() wires a whole graph, and the edge's calm-vs-agitated look tells you the link is settling (valid) or being flung too fast (rejected). Drag speed drives mix between a gentle and a harsh pool — a fixed wave:[a,b] cannot blend two live formulas, which is exactly why two shifting samplers are used, each re-dealing its formula and announcing it via targetName. All wave math lives in one documented helper.",
+    state: { calm: null, rush: null, px: 0, py: 0, mix: 0, snapT: -10 },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
-      if (!state.sampler) {
-        state.sampler = syncedSampler({
-          shift: true,
-          shiftInterval: 2.6,
-          shiftDuration: 0.9,
-          group: "all",
-          range: [-1, 1]
-        });
+      const NODES = [[0.12, 0.2], [0.09, 0.5], [0.13, 0.82]];  // sources (fractions of w,h)
+      const SPEED_REF = 14;   // px/frame that counts as full rush
+      const SMOOTH = 0.07;    // temper inertia (lower = slower mood swings)
+      const WOBBLE = 9;       // wave cycles along an edge
+      const SNAP_AT = 0.85;   // mix level where the edges snap
+      const SNAP_HOLD = 1.2;  // t-units the snap lasts
+      if (!state.calm) {
+        state.calm = syncedSampler({ shift: true, group: "gentle", range: [-1, 1] });
+        state.rush = syncedSampler({ shift: true, group: "harsh", range: [-1, 1] });
+        state.px = w * 0.7; state.py = h * 0.4;
       }
-      const s = state.sampler;
-      s.sample(0, t);
-      ctx.strokeStyle = palette.line;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      for (let x = w * 0.1; x <= w * 0.9; x += 8) {
-        const y = h * 0.5 + s.sample(x * 0.025, t * 0.8) * h * 0.22;
-        if (x === w * 0.1) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-      const trails = 9;
-      for (let i = 0; i < trails; i++) {
-        const phase = i * 0.42;
-        const tx = s.sample(phase, t * 1.0);
-        const ty = s.sample(phase + 12, t * 0.8);
-        const x = w * 0.5 + tx * w * 0.32;
-        const y = h * 0.5 + ty * h * 0.28;
-        const p = i / (trails - 1);
-        const r = lerp(3, 15, p);
-        ctx.fillStyle = i === trails - 1 && s.shifting ? palette.peach : palette.ink;
-        ctx.globalAlpha = lerp(0.14, 1, p);
-        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-      label(ctx, s.shifting ? `${s.waveName} -> ${s.targetName}` : s.waveName, 14, 18, palette.muted, 11);
+      // autopilot pointer: cruises, then darts — its speed is what we measure
+      const px = w * (0.62 + 0.26 * Math.cos(t * 0.7 + Math.sin(t * 0.37) * 2.2));
+      const py = h * (0.45 + 0.3 * Math.sin(t * 1.15 + Math.cos(t * 0.5)));
+      const speed = Math.hypot(px - state.px, py - state.py);
+      state.px = px; state.py = py;
+      state.mix += (clamp(speed / SPEED_REF, 0, 1) - state.mix) * SMOOTH;
+      const mix = state.mix;
+      const rejected = t - state.snapT < SNAP_HOLD;   // link flung too fast -> invalid
+      if (mix > SNAP_AT && !rejected) { state.snapT = t; state.mix = 0.4; }
+      // AMP = wobble height; along a strand u runs 0..1, env pins the ends to the nodes.
+      const AMP = h * 0.11;
+      const wobbleAt = (u, phase) => lerp(
+        state.calm.sample(u * WOBBLE + t * 3 + phase, t),   // valid: gentle pool
+        state.rush.sample(u * WOBBLE + t * 3 + phase, t),   // agitated: harsh pool
+        mix
+      ) * AMP;
+      // the reusable unit: one edge between two points, phase decorrelates edges
+      const drawConnector = (ax, ay, bx, by, phase) => {
+        const len = Math.hypot(bx - ax, by - ay) || 1;
+        const nx = -(by - ay) / len, ny = (bx - ax) / len;   // unit normal to the edge
+        const strand = (u0, u1, pinEnd) => {
+          ctx.beginPath();
+          for (let i = 0; i <= 36; i++) {
+            const u = lerp(u0, u1, i / 36);
+            // full edge: pinned both ends. Rejected stub: pinned at the node, loose at the tear.
+            const env = pinEnd ? Math.sin((u - u0) / (u1 - u0) * Math.PI / 2) : Math.sin(u * Math.PI);
+            const off = wobbleAt(u, phase) * env;
+            ctx[i === 0 ? "moveTo" : "lineTo"](lerp(ax, bx, u) + nx * off, lerp(ay, by, u) + ny * off);
+          }
+          ctx.stroke();
+        };
+        if (rejected) { strand(0, 0.42, true); strand(1, 0.58, true); }  // torn in two
+        else strand(0, 1, false);
+      };
+      ctx.strokeStyle = rejected || mix > 0.5 ? palette.peach : palette.ink;
+      ctx.lineWidth = 1.8;
+      NODES.forEach(([fx, fy], i) => drawConnector(w * fx, h * fy, px, py, i * 7));
+      // node cards
+      const node = (x, y, tag) => {
+        ctx.fillStyle = palette.panel;
+        ctx.strokeStyle = palette.ink;
+        ctx.lineWidth = 1.5;
+        ctx.fillRect(x - 14, y - 9, 28, 18);
+        ctx.strokeRect(x - 14, y - 9, 28, 18);
+        label(ctx, tag, x - 4, y, palette.ink, 9);
+      };
+      NODES.forEach(([fx, fy], i) => node(w * fx, h * fy, String(i + 1)));
+      node(px, py, "B");
+      // the pair re-deals itself: announce it
+      const deal = state.calm.shifting ? `re-deal calm -> ${state.calm.targetName}`
+        : state.rush.shifting ? `re-deal rush -> ${state.rush.targetName}` : null;
+      label(ctx, `calm: ${state.calm.waveName} · rush: ${state.rush.waveName}`, 14, 18, palette.muted, 10);
+      label(
+        ctx,
+        rejected ? "LINK REJECTED — dropped too fast" : deal || (mix > 0.5 ? `tension ${mix.toFixed(2)} — hold steady` : `valid · tension ${mix.toFixed(2)}`),
+        14, h - 12,
+        rejected || mix > 0.5 ? palette.peach : palette.muted, 10
+      );
     },
     sketch: sketchTemplate(`
-let s;
+let calm, rush, mix = 0, snapT = -10;
+const NODES = [[0.12, 0.2], [0.09, 0.5], [0.13, 0.82]];  // sources (fractions of w,h)
+const SPEED_REF = 14;   // px/frame that counts as full rush
+const SMOOTH = 0.07;    // temper inertia (lower = slower mood swings)
+const WOBBLE = 9;       // wave cycles along an edge
+const SNAP_AT = 0.85;   // mix level where the edges snap
+const SNAP_HOLD = 1.2;  // t-units the snap lasts
 function setup() {
-  createCanvas(620, 320); noStroke();
-  s = Waves.createSampler({ shift: true, shiftInterval: 2.6, shiftDuration: 0.9, group: 'all', range: [-1, 1] });
+  createCanvas(620, 320); textFont('Oswald'); noFill();
+  // two shifting pools: the temperament pair re-deals itself over time
+  calm = Waves.createSampler({ shift: true, group: 'gentle', range: [-1, 1] });
+  rush = Waves.createSampler({ shift: true, group: 'harsh', range: [-1, 1] });
 }
 function draw() {
   background(255);
-  const t = millis() / 600, n = 9;
-  s.sample(0, t);
-  noFill(); stroke(220);
+  const t = millis() / 600;
+  // drag speed = link tension: fling it too fast and the edge is rejected as invalid
+  mix += (constrain(dist(mouseX, mouseY, pmouseX, pmouseY) / SPEED_REF, 0, 1) - mix) * SMOOTH;
+  const rejected = t - snapT < SNAP_HOLD;
+  if (mix > SNAP_AT && !rejected) { snapT = t; mix = 0.4; }
+  stroke(rejected || mix > 0.5 ? '#f6a796' : 0); strokeWeight(1.8);
+  NODES.forEach((n, i) => drawConnector(width * n[0], height * n[1], mouseX, mouseY, i * 7, rejected));
+  NODES.forEach((n, i) => drawNode(width * n[0], height * n[1], str(i + 1)));
+  drawNode(mouseX, mouseY, 'B');
+  const deal = calm.shifting ? 're-deal calm -> ' + calm.targetName
+    : rush.shifting ? 're-deal rush -> ' + rush.targetName : null;
+  noStroke(); fill(rejected || mix > 0.5 ? '#f6a796' : 120); textSize(11);
+  text(rejected ? 'LINK REJECTED — dropped too fast' : deal || 'valid · tension ' + nf(mix, 1, 2), 14, height - 10);
+  fill(120); textSize(10);
+  text('calm: ' + calm.waveName + ' · rush: ' + rush.waveName, 14, 20);
+}
+// the reusable unit: one edge between two points, phase decorrelates edges
+function drawConnector(ax, ay, bx, by, phase, rejected) {
+  if (rejected) { strand(ax, ay, bx, by, phase, 0, 0.42); strand(ax, ay, bx, by, phase, 1, 0.58); }
+  else strand(ax, ay, bx, by, phase, 0, 1);
+}
+// one wobbling strand from u0 to u1; env pins the ends, mix blends the two pools
+function strand(ax, ay, bx, by, phase, u0, u1) {
+  const t = millis() / 600;
+  const len = max(1, dist(ax, ay, bx, by));
+  const nx = -(by - ay) / len, ny = (bx - ax) / len;   // unit normal to the edge
   beginShape();
-  for (let x = width * 0.1; x <= width * 0.9; x += 8) vertex(x, height / 2 + s.sample(x * 0.025, t * 0.8) * height * 0.22);
-  endShape();
-  noStroke();
-  for (let i = 0; i < n; i++) {
-    const x = width / 2 + s.sample(i * 0.42, t * 1.0) * width * 0.32;
-    const y = height / 2 + s.sample(i * 0.42 + 12, t * 0.8) * height * 0.28;
-    fill(17, 18, 19, lerp(60, 255, i / (n - 1)));
-    circle(x, y, lerp(8, 32, i / (n - 1)));
+  for (let i = 0; i <= 36; i++) {
+    const u = lerp(u0, u1, i / 36);
+    const env = (u0 === 0 && u1 === 1) ? sin(u * PI) : sin(abs(u - u0) / abs(u1 - u0) * HALF_PI);
+    const off = lerp(calm.sample(u * WOBBLE + t * 3 + phase, t), rush.sample(u * WOBBLE + t * 3 + phase, t), mix) * env * height * 0.11;
+    vertex(lerp(ax, bx, u) + nx * off, lerp(ay, by, u) + ny * off);
   }
-  fill(120); textSize(11); text(s.waveName, 14, 22);
+  endShape();
+}
+function drawNode(x, y, tag) {
+  fill(255); stroke(0); strokeWeight(1.5); rect(x - 17, y - 11, 34, 22);
+  noStroke(); fill(0); textSize(10); text(tag, x - 3, y + 4);
+  noFill(); stroke(0);
 }`)
   },
 
@@ -1597,92 +1932,165 @@ function draw() {
 
   {
     id: "mask-aperture",
-    name: "Aperture Sampler",
+    name: "Formula Keyhole",
     category: "interface",
-    role: "One shifting sampler opens several apertures with different phase offsets, so the reveal pattern changes families.",
-    tags: ["shift", "mask", "reveal"],
+    role: "An organic image-reveal mask whose contour IS the wave: a closing-pool formula wrapped polar via sampler.period seals with no seam, plus a peek lens that follows the pointer.",
+    tags: ["closing", "period", "mask", "reveal"],
     primitive: PRIMITIVES.sampler,
-    reuse: "previews",
-    notes: "A plain sine can open one iris. The sampler turns a set of apertures into a coordinated, shifting reveal system.",
-    state: { sampler: null },
+    reuse: "image reveals, hero sections, hover peeks",
+    notes: "The job is a seamless soft mask: r = R + sample(u) with u sweeping whole periods, so the outline closes by construction and destination-out (which erases the cover wherever the path fills) never leaks a seam — swap the checkerboard for image(img,...) and it is production-ready. The pointer hole is a live peek lens. The memorable hook: while a shift morphs, the formula is literally cut into a key whose teeth are one period of the wave, and the reveal springs UNLOCKED when the key is done.",
+    state: { sampler: null, wasShifting: false, unlockT: -10, open: 0.62 },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
+      const LOBES = 6;        // whole periods around the contour
+      const N = 120;          // contour resolution
+      const CUT_OPEN = 0.45;  // aperture while a new key is being cut
+      const OPEN_HOLD = 2.2;  // t-units the unlock stays wide
+      const RELOCK = 0.08;    // relock speed per t-unit after the hold
+      const FLASH = 1.5;      // t-units the UNLOCKED label shows
       if (!state.sampler) {
-        state.sampler = syncedSampler({
-          shift: true,
-          shiftInterval: 2.8,
-          shiftDuration: 1,
-          group: "gentle",
-          range: [-1, 1]
-        });
+        state.sampler = syncedSampler({ shift: true, group: "closing", range: [-1, 1] });
       }
       const s = state.sampler;
       s.sample(0, t);
-      const cols = 11;
-      const rows = 6;
-      const cw = w / cols;
-      const ch = h / rows;
+      const P = s.period || Math.PI * 2;
+      // lock state machine: shift = cutting a key; shift end = unlock; then relock
+      if (state.wasShifting && !s.shifting) state.unlockT = t;
+      state.wasShifting = s.shifting;
+      const since = t - state.unlockT;
+      const target = s.shifting ? CUT_OPEN : since < OPEN_HOLD ? 1 : Math.max(0.62, 1 - (since - OPEN_HOLD) * RELOCK);
+      state.open += (target - state.open) * 0.1;
+      // stand-in artwork behind the cover
+      const cols = 11, rows = 6, cw = w / cols, chh = h / rows;
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          ctx.fillStyle = (c + r) % 2 ? palette.ink : palette.line;
-          ctx.fillRect(c * cw, r * ch, cw + 0.5, ch + 0.5);
+          ctx.fillStyle = (c + r) % 2 ? palette.ink : palette.sky;
+          ctx.fillRect(c * cw, r * chh, cw + 0.5, chh + 0.5);
         }
       }
+      // the peek lens follows the pointer (autopilot here, mouse in the sketch)
+      const lx = w * (0.74 + 0.14 * Math.cos(t * 0.9));
+      const ly = h * (0.42 + 0.24 * Math.sin(t * 0.6));
+      const HOLES = [
+        { cx: w * 0.34, cy: h * 0.5, R: Math.min(w, h) * 0.26, A: Math.min(w, h) * 0.09, dt: 0, open: state.open },
+        { cx: lx, cy: ly, R: Math.min(w, h) * 0.12, A: Math.min(w, h) * 0.045, dt: 1.3, open: 1 }
+      ];
+      const keyholePath = hole => {
+        ctx.beginPath();
+        for (let i = 0; i <= N; i++) {
+          const a = (i / N) * Math.PI * 2;
+          const u = (i / N) * P * LOBES;              // whole periods -> seals clean
+          const r = (hole.R + s.sample(u, (t - hole.dt) * 0.7) * hole.A) * hole.open;
+          const x = hole.cx + Math.cos(a) * r;
+          const y = hole.cy + Math.sin(a) * r;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+      };
+      // cover panel with the keyholes cut out
       ctx.save();
       ctx.fillStyle = palette.panel;
       ctx.fillRect(0, 0, w, h);
       ctx.globalCompositeOperation = "destination-out";
-      const points = [
-        [0.24, 0.35, 0.0],
-        [0.48, 0.58, 0.7],
-        [0.7, 0.32, 1.4],
-        [0.78, 0.72, 2.1]
-      ];
-      points.forEach(([px, py, phase]) => {
-        const v = norm(s.sample(phase, t * 0.8));
-        const rad = lerp(8, Math.min(w, h) * 0.28, v);
-        ctx.beginPath();
-        ctx.arc(w * px, h * py, rad, 0, Math.PI * 2);
-        ctx.fill();
-      });
+      HOLES.forEach(hole => { keyholePath(hole); ctx.fill(); });
       ctx.restore();
       ctx.strokeStyle = s.shifting ? palette.peach : palette.ink;
       ctx.lineWidth = 1.5;
-      points.forEach(([px, py, phase]) => {
-        const rad = lerp(8, Math.min(w, h) * 0.28, norm(s.sample(phase, t * 0.8)));
-        ctx.beginPath(); ctx.arc(w * px, h * py, rad, 0, Math.PI * 2); ctx.stroke();
-      });
-      label(ctx, s.shifting ? `${s.waveName} -> ${s.targetName}` : s.waveName, 14, 18, palette.muted, 11);
+      HOLES.forEach(hole => { keyholePath(hole); ctx.stroke(); });
+      // the literal key: its teeth are one period of the current formula
+      const KEY = { x0: w * 0.66, x1: w * 0.94, y: 16, base: 3, teeth: 9, n: 24 };  // bit geometry
+      ctx.strokeStyle = ctx.fillStyle = s.shifting ? palette.peach : palette.ink;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(KEY.x0 - 7, KEY.y, 6, 0, Math.PI * 2); ctx.stroke();  // bow
+      ctx.beginPath();
+      ctx.moveTo(KEY.x0, KEY.y - 2);
+      ctx.lineTo(KEY.x1, KEY.y - 2);                                                 // shaft
+      for (let i = KEY.n; i >= 0; i--) {
+        const u = (i / KEY.n) * P;                     // exactly one period of teeth
+        const tooth = KEY.base + norm(s.sample(u, t * 0.7)) * KEY.teeth;
+        ctx.lineTo(KEY.x0 + (i / KEY.n) * (KEY.x1 - KEY.x0), KEY.y - 2 + tooth);
+      }
+      ctx.closePath();
+      ctx.fill();
+      if (s.shifting) {
+        label(ctx, `cutting new key -> ${s.targetName}`, 14, 18, palette.peach, 11);
+      } else if (since < FLASH) {
+        label(ctx, `UNLOCKED · ${s.waveName}`, 14, 18, palette.peach, 12);
+      } else {
+        label(ctx, `locked · key: ${s.waveName}`, 14, 18, palette.muted, 11);
+      }
+      label(ctx, `period ${P.toFixed(2)} × ${LOBES} · seals by construction`, 14, h - 12, palette.muted, 10);
     },
     sketch: sketchTemplate(`
-let s;
+let s, wasShifting = false, unlockT = -10, open = 0.62;
+const LOBES = 6;        // whole periods around the contour
+const N = 120;          // contour resolution
+const CUT_OPEN = 0.45;  // aperture while a new key is being cut
+const OPEN_HOLD = 2.2;  // t-units the unlock stays wide
+const RELOCK = 0.08;    // relock speed per t-unit after the hold
 function setup() {
-  createCanvas(620, 320);
-  s = Waves.createSampler({ shift: true, shiftInterval: 2.8, shiftDuration: 1, group: 'gentle', range: [-1, 1] });
+  createCanvas(620, 320); textFont('Oswald');
+  s = Waves.createSampler({ shift: true, group: 'closing', range: [-1, 1] });
 }
 function draw() {
   background(255);
   const t = millis() / 600;
   s.sample(0, t);
+  const P = s.period || TWO_PI;
+  // lock state machine: shift = cutting a key; shift end = unlock; then relock
+  if (wasShifting && !s.shifting) unlockT = t;
+  wasShifting = s.shifting;
+  const since = t - unlockT;
+  const target = s.shifting ? CUT_OPEN : since < OPEN_HOLD ? 1 : max(0.62, 1 - (since - OPEN_HOLD) * RELOCK);
+  open += (target - open) * 0.1;
+  // stand-in artwork — swap for image(img, 0, 0, width, height)
   const cols = 11, rows = 6, cw = width / cols, ch = height / rows;
   noStroke();
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-    fill((c + r) % 2 ? 17 : 217); rect(c * cw, r * ch, cw + 0.5, ch + 0.5);
+    fill((c + r) % 2 ? 17 : '#b8d2ff'); rect(c * cw, r * ch, cw + 0.5, ch + 0.5);
   }
+  // holes: the big lock plus a peek lens on your mouse
+  const HOLES = [
+    { cx: width * 0.34, cy: height * 0.5, R: height * 0.26, A: height * 0.09, dt: 0, open: open },
+    { cx: mouseX, cy: mouseY, R: height * 0.12, A: height * 0.045, dt: 1.3, open: 1 }
+  ];
+  // cover panel; destination-out erases it wherever the keyhole path fills
   drawingContext.save();
   fill(255); rect(0, 0, width, height);
   drawingContext.globalCompositeOperation = 'destination-out';
-  const pts = [[.24,.35,0], [.48,.58,.7], [.7,.32,1.4], [.78,.72,2.1]];
-  for (const p of pts) {
-    const rad = lerp(8, min(width, height) * 0.28, (s.sample(p[2], t * 0.8) + 1) / 2);
-    circle(width * p[0], height * p[1], rad * 2);
-  }
+  for (const hole of HOLES) keyhole(t, P, hole, true);
   drawingContext.restore();
   noFill(); stroke(s.shifting ? '#f6a796' : 0); strokeWeight(1.5);
-  for (const p of pts) {
-    const rad = lerp(8, min(width, height) * 0.28, (s.sample(p[2], t * 0.8) + 1) / 2);
-    circle(width * p[0], height * p[1], rad * 2);
+  for (const hole of HOLES) keyhole(t, P, hole, false);
+  // the literal key: its teeth are one period of the current formula
+  const kx0 = width * 0.68, kx1 = width * 0.94, ky = 26;
+  stroke(s.shifting ? '#f6a796' : 0); strokeWeight(1.2); noFill();
+  circle(kx0 - 12, ky, 18);                       // bow
+  fill(s.shifting ? '#f6a796' : 0); noStroke();
+  beginShape();
+  vertex(kx0, ky - 3); vertex(kx1, ky - 3);       // shaft
+  for (let i = 24; i >= 0; i--) {
+    const u = (i / 24) * P;                        // exactly one period of teeth
+    vertex(kx0 + (i / 24) * (kx1 - kx0), ky - 3 + 4 + ((s.sample(u, t * 0.7) + 1) / 2) * 12);
   }
+  endShape(CLOSE);
+  noStroke(); textSize(11);
+  if (s.shifting) { fill('#f6a796'); text('cutting new key -> ' + s.targetName, 14, 20); }
+  else if (since < 1.5) { fill('#f6a796'); text('UNLOCKED · ' + s.waveName, 14, 20); }
+  else { fill(120); text('locked · key: ' + s.waveName, 14, 20); }
+  fill(120); text('period ' + nf(P, 1, 2) + ' × ' + LOBES + ' · seals by construction', 14, height - 10);
+}
+function keyhole(t, P, hole, filled) {
+  if (filled) { noStroke(); fill(255); }
+  beginShape();
+  for (let i = 0; i <= N; i++) {
+    const a = (i / N) * TWO_PI;
+    const u = (i / N) * P * LOBES;        // whole periods -> seals clean
+    const r = (hole.R + s.sample(u, (t - hole.dt) * 0.7) * hole.A) * hole.open;
+    vertex(hole.cx + cos(a) * r, hole.cy + sin(a) * r);
+  }
+  endShape(CLOSE);
 }`)
   },
 
