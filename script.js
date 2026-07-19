@@ -883,53 +883,68 @@ function drawLane(y, mix, lbl, col, wgt) {
     id: "layout-squid",
     name: "Layout Squid",
     category: "layout",
-    role: "Four arms, four seeded waves: each column picks its own formula and tugs the layout independently.",
-    tags: ["seed", "columns", "polyrhythm"],
+    role: "Four columns, four smooth formulas from the gentle pool: each arm eases its own width so the layout breathes — never flickers.",
+    tags: ["gentle", "columns", "layout", "smooth"],
     primitive: PRIMITIVES.wave,
-    reuse: "self-tuning grids",
-    notes: "Waves.wave(0, { seed: i }) hashes a different formula per arm. Four seeds = four kinds of motion in one composition. Plain sin() can only sing one tune at a time.",
+    reuse: "self-tuning grids, responsive panels",
+    notes: "A layout must not jitter, so the arms are drawn only from the gentle (sine-family) pool — each a different smooth formula, decorrelated by a time offset, so the columns drift independently but continuously. Seed-hashing the whole catalogue would deal in harsh noise/tan/random formulas and make widths snap: exactly the flicker you never want in a layout. Slow tempo and a narrow width band keep it calm enough to sit behind real content.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
-      const seeds = [3, 11, 19, 27];
-      const cols = [palette.ink, palette.peach, palette.sky, palette.mint];
-      const tt = t * 1.0;
-      const widths = seeds.map(s => {
-        const v = norm(Waves.wave(0, { seed: s, t: tt, amplitude: 1 }));
-        return 0.6 + v * 1.2;
+      // gentle pool only: smooth sine-family formulas, one per arm
+      const ARMS = [
+        { wave: "classic sine",      col: palette.ink },
+        { wave: "smooth solid sine", col: palette.peach },
+        { wave: "meta sine",         col: palette.sky },
+        { wave: "bumpy sine",        col: palette.mint }
+      ];
+      const SLOW = 0.1;        // layout tempo — low = slow drift, a usable settled layout
+      const SPREAD = 3.0;      // time offset between arms, so they never move in lockstep
+      const BAND = [0.8, 0.6]; // width factor = 0.8 .. 1.4 — breathes, never collapses
+      const tt = t * SLOW;
+      const widths = ARMS.map((a, i) => {
+        const v = norm(Waves.wave(0, { wave: a.wave, t: tt + i * SPREAD, amplitude: 1 }));
+        return BAND[0] + v * BAND[1];
       });
       const total = widths.reduce((a, b) => a + b, 0);
       let x = w * 0.06;
-      const top = h * 0.18;
-      const colH = h * 0.64;
-      seeds.forEach((s, i) => {
+      const top = h * 0.18, colH = h * 0.64;
+      ARMS.forEach((a, i) => {
         const cw = (w * 0.88) * (widths[i] / total) - 8;
-        ctx.fillStyle = cols[i];
+        ctx.fillStyle = a.col;
         ctx.fillRect(x, top, cw, colH);
         ctx.fillStyle = palette.panel;
-        ctx.font = "600 11px Oswald, sans-serif";
+        ctx.font = "600 9px Oswald, sans-serif";
         ctx.textBaseline = "top";
-        ctx.fillText(`SEED ${s}`, x + 8, top + 8);
+        if (ctx.measureText(a.wave).width < cw - 12) ctx.fillText(a.wave, x + 8, top + 8);
         x += cw + 8;
       });
+      label(ctx, "arms: gentle pool · smooth, no flicker", 14, h - 12, palette.muted, 10);
     },
     sketch: sketchTemplate(`
-const SEEDS = [3, 11, 19, 27];
+// gentle pool only: smooth sine-family formulas, one per column
+const ARMS = ['classic sine', 'smooth solid sine', 'meta sine', 'bumpy sine'];
 const COLS = ['#111', '#f6a796', '#b8d2ff', '#c7e89c'];
+const SLOW = 0.1;         // layout tempo — low = slow drift, a usable settled layout
+const SPREAD = 3.0;       // time offset between arms, so they never move in lockstep
+const BAND = [0.8, 0.6];  // width factor 0.8..1.4 — breathes, never collapses
 function setup() { createCanvas(620, 320); textFont('Oswald'); }
 function draw() {
   background(255);
-  const t = millis() / 600;
-  const widths = SEEDS.map(s => 0.6 + ((Waves.wave(0, { seed: s, t: t * 1.0, amplitude: 1 }) + 1) / 2) * 1.2);
+  const t = millis() / 600 * SLOW;
+  // each arm a different smooth formula, decorrelated by a time offset -> no flicker
+  const widths = ARMS.map((wave, i) =>
+    BAND[0] + ((Waves.wave(0, { wave, t: t + i * SPREAD, amplitude: 1 }) + 1) / 2) * BAND[1]);
   const total = widths.reduce((a, b) => a + b, 0);
   let x = width * 0.06;
   const top = height * 0.18, colH = height * 0.64;
   noStroke();
-  for (let i = 0; i < SEEDS.length; i++) {
+  for (let i = 0; i < ARMS.length; i++) {
     const cw = (width * 0.88) * (widths[i] / total) - 8;
     fill(COLS[i]); rect(x, top, cw, colH);
-    fill(255); textSize(11); text('SEED ' + SEEDS[i], x + 8, top + 18);
+    fill(255); textSize(11); text(ARMS[i], x + 8, top + 18);
     x += cw + 8;
   }
+  fill(120); textSize(10); text('arms: gentle pool · smooth, no flicker', 14, height - 12);
 }`)
   },
 
@@ -937,20 +952,24 @@ function draw() {
     id: "word-gate",
     name: "Word Gate Shift",
     category: "type",
-    role: "A shifting sampler turns words on or off; the gate rhythm itself changes formula family, so the copy keeps resequencing.",
-    tags: ["gate", "shift", "group", "waveName"],
+    role: "A gentle shifting wave gates the words on and off, but each transition is eased — a readable emphasis sequencer that fades, never strobes.",
+    tags: ["gate", "gentle", "shift", "smooth"],
     primitive: PRIMITIVES.sampler,
-    reuse: "typography",
-    notes: "sin() > 0 gives one fixed rhythm forever. A sampler shifting across a pulse-family group pool rotates the gate formula, so the same five words find new sequencer patterns; waveName names the current rhythm.",
-    state: { sampler: null },
+    reuse: "typography, emphasis rhythm",
+    notes: "The signal is a gentle (sine-family) formula, thresholded to a per-word on/off, then eased into a stored lit value so each word crossfades between dim and bold instead of blinking. A pulse-family gate would snap the words on and off and strobe — unreadable. Shift still rotates the underlying rhythm (waveName), so the same copy keeps finding new emphasis patterns; the slow tempo keeps it calm enough to read behind real content.",
+    state: { sampler: null, lit: null },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
+      const words = ["READ", "PARSE", "BEND", "SHOW", "REPEAT"];
       if (!state.sampler) {
-        state.sampler = syncedSampler({ shift: true, shiftInterval: 2.4, shiftDuration: 0.8, group: ["pulse", "up down pulse", "fuzzy pulse", "square"], range: [-1, 1] });
+        state.sampler = syncedSampler({ shift: true, group: "gentle", range: [-1, 1] });
+        state.lit = words.map(() => 0);
       }
       const s = state.sampler;
       s.sample(0, t);
-      const words = ["READ", "PARSE", "BEND", "SHOW", "REPEAT"];
+      const SLOW = 0.35;    // calm reading tempo
+      const THRESH = 0.15;  // gate opens above this signal level
+      const EASE = 0.08;    // per-word crossfade speed (low = softer)
       const fontSize = Math.min(38, w * 0.075);
       ctx.font = `600 ${fontSize}px Oswald, sans-serif`;
       ctx.textBaseline = "middle";
@@ -960,23 +979,31 @@ function draw() {
       let x = (w - total) * 0.5;
       const y = h * 0.5;
       words.forEach((word, i) => {
-        const on = s.sample(i * 0.4, t * 1.2) > 0;
-        ctx.fillStyle = on ? palette.ink : palette.line;
+        // gentle signal, spaced per word, thresholded to a gate — then eased so it never strobes
+        const target = s.sample(i * 0.7, t * SLOW) > THRESH ? 1 : 0;
+        state.lit[i] += (target - state.lit[i]) * EASE;
+        const lit = state.lit[i];
+        ctx.globalAlpha = 0.2 + lit * 0.8;
+        ctx.fillStyle = palette.ink;
         ctx.fillText(word, x, y);
-        if (on) {
-          ctx.fillStyle = palette.peach;
-          ctx.fillRect(x, y + fontSize * 0.55, widths[i], 4);
-        }
+        ctx.globalAlpha = lit;
+        ctx.fillStyle = palette.peach;
+        ctx.fillRect(x, y + fontSize * 0.55, widths[i], 4);
+        ctx.globalAlpha = 1;
         x += widths[i] + gap;
       });
       label(ctx, s.shifting ? `${s.waveName} -> ${s.targetName}` : s.waveName, w * 0.5 - 70, h * 0.86, palette.muted, 11);
     },
     sketch: sketchTemplate(`
-let s;
+let s, lit;
 const words = ['READ', 'PARSE', 'BEND', 'SHOW', 'REPEAT'];
+const SLOW = 0.35;    // calm reading tempo
+const THRESH = 0.15;  // gate opens above this signal level
+const EASE = 0.08;    // per-word crossfade speed (low = softer)
 function setup() {
   createCanvas(620, 320); textFont('Oswald');
-  s = Waves.createSampler({ shift: true, shiftInterval: 2.4, shiftDuration: 0.8, group: ['pulse', 'up down pulse', 'fuzzy pulse', 'square'], range: [-1, 1] });
+  s = Waves.createSampler({ shift: true, group: 'gentle', range: [-1, 1] });
+  lit = words.map(() => 0);
 }
 function draw() {
   background(255);
@@ -987,9 +1014,13 @@ function draw() {
   const total = widths.reduce((a, b) => a + b, 0) + 26 * (words.length - 1);
   let x = (width - total) / 2;
   for (let i = 0; i < words.length; i++) {
-    const on = s.sample(i * 0.4, t * 1.2) > 0;
-    fill(on ? 0 : 220); text(words[i], x, height / 2);
-    if (on) { fill(246, 167, 150); rect(x, height / 2 + 20, widths[i], 4); }
+    // gentle signal -> gate -> eased so the word fades in and out, never strobes
+    const target = s.sample(i * 0.7, t * SLOW) > THRESH ? 1 : 0;
+    lit[i] += (target - lit[i]) * EASE;
+    fill(17, 17, 17, (0.2 + lit[i] * 0.8) * 255);
+    text(words[i], x, height / 2);
+    fill(246, 167, 150, lit[i] * 255);
+    rect(x, height / 2 + 20, widths[i], 4);
     x += widths[i] + 26;
   }
   fill(120); textSize(11);
@@ -1300,7 +1331,7 @@ function draw() {
     id: "transition-meter",
     name: "Formula Mix Section",
     category: "state",
-    role: "sampler.mix becomes a section cut through current and target formulas, not just a progress ring.",
+    role: "Sampler.mix becomes a section cut through current and target formulas, not just a progress ring.",
     tags: ["mix", "transition", "waveName"],
     primitive: PRIMITIVES.sampler,
     reuse: "state transitions",
@@ -1477,7 +1508,7 @@ function drawType(t, s) {
     id: "rhythmic-divider",
     name: "Self-Naming Divider",
     category: "layout",
-    role: "drawDivider(y, caption, periods): a reusable section rule that stays perfectly level at any density because it sweeps whole sampler.period cycles — the ends are twins by construction.",
+    role: "DrawDivider(y, caption, periods): a reusable section rule that stays perfectly level at any density because it sweeps whole sampler.period cycles — the ends are twins by construction.",
     tags: ["divider", "closing", "period", "waveName", "system"],
     primitive: PRIMITIVES.sampler,
     reuse: "section breaks, chapter ornaments, print rules",
@@ -1618,7 +1649,7 @@ function drawDivider(y, caption, periods) {
     id: "cursor-echo",
     name: "Live Connector",
     category: "motion",
-    role: "drawConnector(a, b, calm) draws a validated node-graph edge: drag speed is the connection's tension, and a reckless drop is rejected as invalid — the wave carries the feedback.",
+    role: "DrawConnector(a, b, calm) draws a validated node-graph edge: drag speed is the connection's tension, and a reckless drop is rejected as invalid — the wave carries the feedback.",
     tags: ["mix", "gentle", "harsh", "connector", "validation"],
     primitive: PRIMITIVES.sampler,
     reuse: "node editors, flow builders, link validation",
@@ -1691,7 +1722,7 @@ function drawDivider(y, caption, periods) {
       label(ctx, `calm: ${state.calm.waveName} · rush: ${state.rush.waveName}`, 14, 18, palette.muted, 10);
       label(
         ctx,
-        rejected ? "LINK REJECTED — dropped too fast" : deal || (mix > 0.5 ? `tension ${mix.toFixed(2)} — hold steady` : `valid · tension ${mix.toFixed(2)}`),
+        rejected ? "link rejected — dropped too fast" : deal || (mix > 0.5 ? `tension ${mix.toFixed(2)} — hold steady` : `valid · tension ${mix.toFixed(2)}`),
         14, h - 12,
         rejected || mix > 0.5 ? palette.peach : palette.muted, 10
       );
@@ -1724,7 +1755,7 @@ function draw() {
   const deal = calm.shifting ? 're-deal calm -> ' + calm.targetName
     : rush.shifting ? 're-deal rush -> ' + rush.targetName : null;
   noStroke(); fill(rejected || mix > 0.5 ? '#f6a796' : 120); textSize(11);
-  text(rejected ? 'LINK REJECTED — dropped too fast' : deal || 'valid · tension ' + nf(mix, 1, 2), 14, height - 10);
+  text(rejected ? 'link rejected — dropped too fast' : deal || 'valid · tension ' + nf(mix, 1, 2), 14, height - 10);
   fill(120); textSize(10);
   text('calm: ' + calm.waveName + ' · rush: ' + rush.waveName, 14, 20);
 }
@@ -1758,11 +1789,11 @@ function drawNode(x, y, tag) {
     id: "strobe-newt",
     name: "Strobe Newt",
     category: "color",
-    role: "An electric little creature: panel flicks between lemon and ink on unpredictable beats.",
+    role: "An electric little creature that flicks between lemon and ink on unpredictable beats, on a calm panel.",
     tags: ["wild", "flicker", "up down pulse"],
     primitive: PRIMITIVES.wave,
     reuse: "warning chips, attention states",
-    notes: "mode: 'wild' + unpredictability bends the underlying pulse so it never lands on the same beat twice. Plain sin() can't break its own pattern: this newt only exists with p5.waves.",
+    notes: "Mode: 'wild' + unpredictability bends the underlying pulse so it never lands on the same beat twice. Plain sin() can't break its own pattern: this newt only exists with p5.waves.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       const v = norm(Waves.wave(0, {
@@ -1773,18 +1804,22 @@ function drawNode(x, y, tag) {
         amplitude: 1
       }));
       const on = v > 0.5;
+      // only the central creature reacts; the panel stays calm like the other cards
+      const cx = w * 0.5, cy = h * 0.5, R = Math.min(w, h) * 0.26;
       ctx.fillStyle = on ? palette.lemon : palette.ink;
-      ctx.fillRect(w * 0.1, h * 0.2, w * 0.8, h * 0.6);
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.fill();
       // newt eye: pupil shifts side to side as it blinks
       ctx.fillStyle = on ? palette.ink : palette.lemon;
       ctx.beginPath();
-      ctx.arc(w * 0.5, h * 0.5, 22, 0, Math.PI * 2);
+      ctx.arc(cx, cy, R * 0.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = on ? palette.lemon : palette.ink;
       ctx.beginPath();
-      ctx.arc(w * 0.5 + (on ? 5 : -5), h * 0.5, 8, 0, Math.PI * 2);
+      ctx.arc(cx + (on ? 6 : -6), cy, R * 0.2, 0, Math.PI * 2);
       ctx.fill();
-      label(ctx, on ? "SPARK" : "DARK", w * 0.1, h * 0.93, palette.muted, 11);
+      label(ctx, on ? "SPARK" : "DARK", 14, h * 0.93, palette.muted, 11);
     },
     sketch: sketchTemplate(`
 function setup() { createCanvas(620, 320); }
@@ -1798,13 +1833,15 @@ function draw() {
     amplitude: 1
   }) + 1) / 2;
   const on = v > 0.5;
+  // only the central creature reacts; the background stays calm
+  const cx = width / 2, cy = height / 2, R = min(width, height) * 0.26;
   noStroke();
   fill(on ? '#f3e679' : 0);
-  rect(width * 0.1, height * 0.2, width * 0.8, height * 0.6);
+  circle(cx, cy, R * 2);
   fill(on ? 0 : '#f3e679');
-  circle(width / 2, height / 2, 44);
+  circle(cx, cy, R);
   fill(on ? '#f3e679' : 0);
-  circle(width / 2 + (on ? 5 : -5), height / 2, 16);
+  circle(cx + (on ? 6 : -6), cy, R * 0.4);
 }`)
   },
 
@@ -1934,11 +1971,11 @@ function draw() {
     id: "mask-aperture",
     name: "Formula Keyhole",
     category: "interface",
-    role: "An organic image-reveal mask whose contour IS the wave: a closing-pool formula wrapped polar via sampler.period seals with no seam, plus a peek lens that follows the pointer.",
+    role: "An organic image-reveal mask whose contour IS the wave: a closing-pool formula wrapped polar via sampler.period seals with no seam. Two apertures share one sampler and morph in place.",
     tags: ["closing", "period", "mask", "reveal"],
     primitive: PRIMITIVES.sampler,
     reuse: "image reveals, hero sections, hover peeks",
-    notes: "The job is a seamless soft mask: r = R + sample(u) with u sweeping whole periods, so the outline closes by construction and destination-out (which erases the cover wherever the path fills) never leaks a seam — swap the checkerboard for image(img,...) and it is production-ready. The pointer hole is a live peek lens. The memorable hook: while a shift morphs, the formula is literally cut into a key whose teeth are one period of the wave, and the reveal springs UNLOCKED when the key is done.",
+    notes: "The job is a seamless soft mask: r = R + sample(u) with u sweeping whole periods, so the outline closes by construction and destination-out (which erases the cover wherever the path fills) never leaks a seam — swap the checkerboard for image(img,...) and it is production-ready. Both apertures run the same sampler a phase apart, fixed in place so the eye follows the transformation, not a moving hole; give the second one the pointer for a hover peek. The memorable hook: while a shift morphs, the formula is literally cut into a key whose teeth are one period of the wave, and the reveal springs UNLOCKED when the key is done.",
     state: { sampler: null, wasShifting: false, unlockT: -10, open: 0.62 },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
@@ -1968,12 +2005,11 @@ function draw() {
           ctx.fillRect(c * cw, r * chh, cw + 0.5, chh + 0.5);
         }
       }
-      // the peek lens follows the pointer (autopilot here, mouse in the sketch)
-      const lx = w * (0.74 + 0.14 * Math.cos(t * 0.9));
-      const ly = h * (0.42 + 0.24 * Math.sin(t * 0.6));
+      // two apertures share one sampler at different phases, both fixed in place —
+      // so the eye follows the seamless morphing of the contour, not a moving hole
       const HOLES = [
         { cx: w * 0.34, cy: h * 0.5, R: Math.min(w, h) * 0.26, A: Math.min(w, h) * 0.09, dt: 0, open: state.open },
-        { cx: lx, cy: ly, R: Math.min(w, h) * 0.12, A: Math.min(w, h) * 0.045, dt: 1.3, open: 1 }
+        { cx: w * 0.72, cy: h * 0.6, R: Math.min(w, h) * 0.13, A: Math.min(w, h) * 0.05, dt: 1.3, open: 1 }
       ];
       const keyholePath = hole => {
         ctx.beginPath();
@@ -1998,25 +2034,31 @@ function draw() {
       ctx.strokeStyle = s.shifting ? palette.peach : palette.ink;
       ctx.lineWidth = 1.5;
       HOLES.forEach(hole => { keyholePath(hole); ctx.stroke(); });
-      // the literal key: its teeth are one period of the current formula
-      const KEY = { x0: w * 0.66, x1: w * 0.94, y: 16, base: 3, teeth: 9, n: 24 };  // bit geometry
-      ctx.strokeStyle = ctx.fillStyle = s.shifting ? palette.peach : palette.ink;
-      ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.arc(KEY.x0 - 7, KEY.y, 6, 0, Math.PI * 2); ctx.stroke();  // bow
+      // the literal key, on its own opaque card so the moving artwork never shows
+      // through it: the teeth are exactly one period of the current formula
+      const card = { x: w * 0.6, y: 3, w: w * 0.38, h: 40 };
+      ctx.fillStyle = palette.panel;
+      ctx.fillRect(card.x, card.y, card.w, card.h);
+      ctx.strokeStyle = palette.line;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(card.x, card.y, card.w, card.h);
+      label(ctx, "KEY · 1 PERIOD", card.x + 7, card.y + 9, palette.muted, 8);
+      const KEY = { x0: card.x + 8, x1: card.x + card.w - 8, y: card.y + 20, base: 2.5, teeth: 11, n: 24 };
+      ctx.fillStyle = s.shifting ? palette.peach : palette.ink;
       ctx.beginPath();
-      ctx.moveTo(KEY.x0, KEY.y - 2);
-      ctx.lineTo(KEY.x1, KEY.y - 2);                                                 // shaft
+      ctx.moveTo(KEY.x0, KEY.y);
+      ctx.lineTo(KEY.x1, KEY.y);                          // shaft
       for (let i = KEY.n; i >= 0; i--) {
-        const u = (i / KEY.n) * P;                     // exactly one period of teeth
+        const u = (i / KEY.n) * P;                        // exactly one period of teeth
         const tooth = KEY.base + norm(s.sample(u, t * 0.7)) * KEY.teeth;
-        ctx.lineTo(KEY.x0 + (i / KEY.n) * (KEY.x1 - KEY.x0), KEY.y - 2 + tooth);
+        ctx.lineTo(KEY.x0 + (i / KEY.n) * (KEY.x1 - KEY.x0), KEY.y + tooth);
       }
       ctx.closePath();
       ctx.fill();
       if (s.shifting) {
         label(ctx, `cutting new key -> ${s.targetName}`, 14, 18, palette.peach, 11);
       } else if (since < FLASH) {
-        label(ctx, `UNLOCKED · ${s.waveName}`, 14, 18, palette.peach, 12);
+        label(ctx, `unlocked · ${s.waveName}`, 14, 18, palette.peach, 12);
       } else {
         label(ctx, `locked · key: ${s.waveName}`, 14, 18, palette.muted, 11);
       }
@@ -2050,10 +2092,11 @@ function draw() {
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
     fill((c + r) % 2 ? 17 : '#b8d2ff'); rect(c * cw, r * ch, cw + 0.5, ch + 0.5);
   }
-  // holes: the big lock plus a peek lens on your mouse
+  // two apertures, one sampler, a phase apart — both fixed so the morph reads.
+  // swap the second cx/cy for mouseX/mouseY to make it a hover peek instead.
   const HOLES = [
     { cx: width * 0.34, cy: height * 0.5, R: height * 0.26, A: height * 0.09, dt: 0, open: open },
-    { cx: mouseX, cy: mouseY, R: height * 0.12, A: height * 0.045, dt: 1.3, open: 1 }
+    { cx: width * 0.72, cy: height * 0.6, R: height * 0.13, A: height * 0.05, dt: 1.3, open: 1 }
   ];
   // cover panel; destination-out erases it wherever the keyhole path fills
   drawingContext.save();
@@ -2063,21 +2106,23 @@ function draw() {
   drawingContext.restore();
   noFill(); stroke(s.shifting ? '#f6a796' : 0); strokeWeight(1.5);
   for (const hole of HOLES) keyhole(t, P, hole, false);
-  // the literal key: its teeth are one period of the current formula
-  const kx0 = width * 0.68, kx1 = width * 0.94, ky = 26;
-  stroke(s.shifting ? '#f6a796' : 0); strokeWeight(1.2); noFill();
-  circle(kx0 - 12, ky, 18);                       // bow
-  fill(s.shifting ? '#f6a796' : 0); noStroke();
+  // the literal key, on its own opaque card so the moving artwork never shows through it
+  const cardX = width * 0.6, cardY = 4, cardW = width * 0.38, cardH = 44;
+  noStroke(); fill(255); rect(cardX, cardY, cardW, cardH);
+  stroke(220); strokeWeight(1); noFill(); rect(cardX, cardY, cardW, cardH);
+  noStroke(); fill(120); textSize(9); text('KEY · 1 PERIOD', cardX + 8, cardY + 13);
+  const kx0 = cardX + 10, kx1 = cardX + cardW - 10, ky = cardY + 22;
+  fill(s.shifting ? '#f6a796' : 0);
   beginShape();
-  vertex(kx0, ky - 3); vertex(kx1, ky - 3);       // shaft
+  vertex(kx0, ky); vertex(kx1, ky);               // shaft
   for (let i = 24; i >= 0; i--) {
     const u = (i / 24) * P;                        // exactly one period of teeth
-    vertex(kx0 + (i / 24) * (kx1 - kx0), ky - 3 + 4 + ((s.sample(u, t * 0.7) + 1) / 2) * 12);
+    vertex(kx0 + (i / 24) * (kx1 - kx0), ky + 2.5 + ((s.sample(u, t * 0.7) + 1) / 2) * 12);
   }
   endShape(CLOSE);
   noStroke(); textSize(11);
   if (s.shifting) { fill('#f6a796'); text('cutting new key -> ' + s.targetName, 14, 20); }
-  else if (since < 1.5) { fill('#f6a796'); text('UNLOCKED · ' + s.waveName, 14, 20); }
+  else if (since < 1.5) { fill('#f6a796'); text('unlocked · ' + s.waveName, 14, 20); }
   else { fill(120); text('locked · key: ' + s.waveName, 14, 20); }
   fill(120); text('period ' + nf(P, 1, 2) + ' × ' + LOBES + ' · seals by construction', 14, height - 10);
 }
@@ -2102,7 +2147,7 @@ function keyhole(t, P, hole, filled) {
     tags: ["shift", "edge", "gait"],
     primitive: PRIMITIVES.sampler,
     reuse: "active-card edges, focus indicators",
-    notes: "createSampler with shift: true keeps the marker but rotates the formula behind its motion. You can SEE the gait change. Faking this by hand means scheduling four animations to crossfade. Here it's one call.",
+    notes: "CreateSampler with shift: true keeps the marker but rotates the formula behind its motion. You can SEE the gait change. Faking this by hand means scheduling four animations to crossfade. Here it's one call.",
     state: { sampler: null },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
@@ -2172,7 +2217,7 @@ function draw() {
     tags: ["group", "compare"],
     primitive: PRIMITIVES.sampler,
     reuse: "wave selection",
-    notes: "group: 'gentle' pools the sines and curves; group: 'harsh' pools the tan/noise/random formulas. The pools are curated inside the library, so the comparison stays honest across versions.",
+    notes: "Group: 'gentle' pools the sines and curves; group: 'harsh' pools the tan/noise/random formulas. The pools are curated inside the library, so the comparison stays honest across versions.",
     state: { gentle: null, harsh: null },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
@@ -2227,11 +2272,11 @@ function draw() {
     id: "wild-terrain",
     name: "Wild Terrain",
     category: "texture",
-    role: "mode: 'wild' + a gentle-pool formula generate a frozen irregular skyline; the window slides along it like a terrain run.",
+    role: "Mode: 'wild' + a gentle-pool formula generate a frozen irregular skyline; the window slides along it like a terrain run.",
     tags: ["wild", "terrain", "scroll", "group"],
     primitive: PRIMITIVES.sampler,
     reuse: "skylines, side-scrollers",
-    notes: "group: 'gentle' keeps tan/noise/random formulas out of the landscape, so the skyline stays bounded. The terrain itself is frozen (t stays 0): each reload picks a new gentle formula, then the window slides along it. Wild mode is ~5× slower than stable: keep it off for 10k-point loops.",
+    notes: "Group: 'gentle' keeps tan/noise/random formulas out of the landscape, so the skyline stays bounded. The terrain itself is frozen (t stays 0): each reload picks a new gentle formula, then the window slides along it. Wild mode is ~5× slower than stable: keep it off for 10k-point loops.",
     state: { sampler: null, ys: null },
     draw(ctx, w, h, t, state) {
       clear(ctx, w, h, palette.panel);
@@ -2362,7 +2407,7 @@ function draw() {
     id: "closing-ring",
     name: "Closing Ring",
     category: "motion",
-    role: "group: 'closing' + sampler.period sweep an exact number of periods around a loop: the ring stays seamless while the formula shifts.",
+    role: "Group: 'closing' + sampler.period sweep an exact number of periods around a loop: the ring stays seamless while the formula shifts.",
     tags: ["closing", "period", "shift", "ring"],
     primitive: PRIMITIVES.sampler,
     reuse: "badges, dials, loop masks",
@@ -2519,7 +2564,7 @@ function drawRing(cx, span, lbl) {
     id: "period-tile",
     name: "Period-Locked Tile",
     category: "texture",
-    role: "sampler.period fits an exact number of periods into one tile, so the band repeats seamlessly — even while the formula shifts.",
+    role: "Sampler.period fits an exact number of periods into one tile, so the band repeats seamlessly — even while the formula shifts.",
     tags: ["closing", "period", "tile", "pattern"],
     primitive: PRIMITIVES.sampler,
     reuse: "repeating borders, exportable patterns",
@@ -2599,7 +2644,7 @@ function draw() {
     id: "ghost-ring",
     name: "Ghost Ring",
     category: "motion",
-    role: "group: 'ghost' pools the closing waves that stay readable as delayed echoes: one sampler, four moments of t, one trailing ring.",
+    role: "Group: 'ghost' pools the closing waves that stay readable as delayed echoes: one sampler, four moments of t, one trailing ring.",
     tags: ["ghost", "closing", "echo", "delay"],
     primitive: PRIMITIVES.sampler,
     reuse: "loaders, trails, afterimage accents",
@@ -2685,11 +2730,11 @@ function draw() {
     id: "shake-out-nudge",
     name: "Shake Out Nudge",
     category: "interface",
-    role: "wave: 'shake out' (v3.6.0) is a mirrored log-chirp: a burst of shake that calms down and comes back every period — a built-in attention nudge.",
+    role: "Wave: 'shake out' (v3.6.0) is a mirrored log-chirp: a burst of shake that calms down and comes back every period — a built-in attention nudge.",
     tags: ["shake out", "chirp", "nudge", "notification"],
     primitive: PRIMITIVES.wave,
     reuse: "attention nudges, error shakes, reminder badges",
-    notes: "shake out replaced fade out at index 22 in v3.6.0: the old chirp died out once, this one repeats on an exact period (62.83 in wave-x), so the nudge re-fires on schedule with no timer code. The playhead below shows where the badge sits inside one period.",
+    notes: "Shake out replaced fade out at index 22 in v3.6.0: the old chirp died out once, this one repeats on an exact period (62.83 in wave-x), so the nudge re-fires on schedule with no timer code. The playhead below shows where the badge sits inside one period.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       const PERIOD = 62.8319;
@@ -2755,11 +2800,11 @@ function draw() {
     id: "spike-pop",
     name: "Spike Pop",
     category: "type",
-    role: "wave: ['classic sine', 'spike sine'] morphs an emphasis ripple from always-moving to one-letter-pops: spike sine (v3.5.0) rests flat, then peaks.",
+    role: "Wave: ['classic sine', 'spike sine'] morphs an emphasis ripple from always-moving to one-letter-pops: spike sine (v3.5.0) rests flat, then peaks.",
     tags: ["spike sine", "morph", "emphasis", "lettering"],
     primitive: PRIMITIVES.wave,
     reuse: "emphasis ripples, menu hovers, karaoke text",
-    notes: "spike sine is sin⁵: long flat valleys with one narrow smooth peak, so most letters sit still while one pops — plain sine keeps everything moving at once. The mix is the design decision: how sharp should emphasis be? It is gentle and period-locked, so the ripple loops clean.",
+    notes: "Spike sine is sin⁵: long flat valleys with one narrow smooth peak, so most letters sit still while one pops — plain sine keeps everything moving at once. The mix is the design decision: how sharp should emphasis be? It is gentle and period-locked, so the ripple loops clean.",
     draw(ctx, w, h, t) {
       clear(ctx, w, h, palette.panel);
       const WORD = "EMPHASIS";
