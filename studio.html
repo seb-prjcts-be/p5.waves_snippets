@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>p5.waves social studio</title>
+    <meta name="description" content="Generates a ready-to-post image, video loop and captions for Instagram, LinkedIn and X from the p5.waves specimen library. One specimen per day, no input needed.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=7">
+    <link rel="stylesheet" href="studio.css?v=1">
+    <script src="https://cdn.jsdelivr.net/gh/seb-prjcts-be/p5.waves@v3.6.0/p5.waves.min.js"></script>
+  </head>
+  <body class="studio">
+    <nav id="navbar">
+      <div class="nav-logo"><a href="index.html" style="text-decoration:none;color:inherit;">p5.<span>waves</span> studio</a></div>
+      <ul class="nav-links">
+        <li><a href="index.html">Specimens</a></li>
+        <li><a href="https://github.com/seb-prjcts-be/p5.waves" target="_blank" rel="noopener">p5.waves</a></li>
+      </ul>
+    </nav>
+
+    <main class="studio-main">
+      <header class="studio-head">
+        <p class="hero-badge">SOCIAL STUDIO</p>
+        <h1>Today's post is already made.</h1>
+        <p class="hero-lead">
+          Every day the studio picks one specimen from the library and turns it into an image, a video loop
+          and three captions. Open the page, download, paste. Nothing to write.
+        </p>
+      </header>
+
+      <section class="studio-controls" aria-label="Post controls">
+        <div class="control-group">
+          <label class="control-label" for="daySelect">DAY</label>
+          <input id="daySelect" type="date">
+        </div>
+        <div class="control-group">
+          <label class="control-label" for="specimenSelect">SPECIMEN</label>
+          <select id="specimenSelect"></select>
+        </div>
+        <div class="control-group">
+          <span class="control-label">FORMAT</span>
+          <div class="filter-wrap" id="formatButtons"></div>
+        </div>
+        <button id="shuffleButton" class="motion-toggle" type="button">SURPRISE ME</button>
+      </section>
+
+      <section class="studio-stage">
+        <div class="stage-frame">
+          <canvas id="post" aria-label="Post preview"></canvas>
+        </div>
+        <div class="stage-actions">
+          <button id="pngButton" type="button">DOWNLOAD IMAGE</button>
+          <button id="videoButton" type="button">RECORD VIDEO LOOP</button>
+          <span id="videoStatus" class="stage-status" aria-live="polite"></span>
+        </div>
+      </section>
+
+      <section class="captions" aria-label="Captions">
+        <article class="caption-card" data-platform="instagram">
+          <header><h2>Instagram</h2><span class="count"></span><button type="button" class="copy-button">COPY</button></header>
+          <textarea rows="14" spellcheck="true"></textarea>
+        </article>
+        <article class="caption-card" data-platform="linkedin">
+          <header><h2>LinkedIn</h2><span class="count"></span><button type="button" class="copy-button">COPY</button></header>
+          <textarea rows="14" spellcheck="true"></textarea>
+        </article>
+        <article class="caption-card" data-platform="x">
+          <header><h2>X</h2><span class="count"></span><button type="button" class="copy-button">COPY</button></header>
+          <textarea rows="7" spellcheck="true"></textarea>
+        </article>
+      </section>
+
+      <section class="calendar" aria-label="Upcoming posts">
+        <h2>Next 14 days</h2>
+        <ol id="calendar"></ol>
+        <p class="calendar-note">The order is a fixed shuffle of all specimens, so every one gets a turn before any repeats.
+          Link to a specific day with <code>studio.html?day=2026-10-01</code>.</p>
+      </section>
+    </main>
+
+    <footer>
+      <p>Built with <a href="https://github.com/seb-prjcts-be/p5.waves" target="_blank" rel="noopener">p5.waves</a> + the <a href="index.html">specimen library</a></p>
+      <p class="footer-sub">Part of the p5.waves ecosystem · v3.6.0</p>
+    </footer>
+
+    <script src="script.js?v=45" defer></script>
+    <script src="studio.js?v=1" defer></script>
+  </body>
+</html>

@@ -35,3 +35,14 @@ Strong specimens should make at least one `p5.waves`-specific feature visible or
 - `Waves.list()` / `Waves.count` for runtime self-documentation
 
 The `Arc Value Label` card is the current model for this approach: the path stays fixed, but a shifting sampler changes how the marker travels between `< 0`, `0`, and `> 0`. The visible concept depends on the wave dialect, `waveName`, and `targetName`, not just on a label moving from left to right.
+
+## Social Studio
+
+`studio.html` turns the specimen library into ready-to-post social content, with no input needed:
+
+- **One specimen per day.** A fixed shuffle of all specimens, keyed to the calendar date, so each one gets a turn before any repeats. `studio.html?day=2026-10-01` opens a specific day; `?id=word-gate&format=x` opens a specific specimen and format.
+- **Four formats:** Instagram 4:5 (1080×1350), Reel/Story 9:16 (1080×1920, keeps clear of the UI overlay strips), LinkedIn 1:1 (1200×1200) and X 16:9 (1600×900).
+- **Image or video.** Download a PNG, or record a 10-second loop (MP4 where the browser supports it, otherwise WebM).
+- **Three captions.** Instagram (long text plus hashtags), LinkedIn (the reason it's useful, the p5.waves feature, links, sometimes a classroom tip) and X (always 280 characters or fewer, with URLs counted as 23). The captions are built from the specimen's own `role`, `notes`, `reuse` and `tags`, so a new specimen in `script.js` shows up in the studio by itself.
+
+The studio reuses the `modules` from `script.js` directly: the post canvas calls each specimen's own `draw()`.
