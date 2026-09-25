@@ -3251,6 +3251,8 @@ function boot() {
     setTimeout(boot, 30);
     return;
   }
+  // studio.html reuses the module definitions without the library page chrome
+  if (!library) return;
   bootHero();
   renderLibrary();
   bindControls();
